@@ -1,15 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Upload, Download, CheckCircle, AlertCircle,
   XCircle, ArrowRight, ArrowLeft, Loader, FileSpreadsheet,
-  Info, Eye, EyeOff, FileJson, FileSpreadsheet as FileExcel,
+  Info, Eye, EyeOff,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import type { ViewKey } from '@/components/AppShell';
 import { HelpTooltip, InfoNote } from '@/components/HelpUI';
-import { INDICATOR_LABELS, INDICATOR_SHORT } from '@/types';
+import { INDICATOR_SHORT } from '@/types';
 
 interface UploadData {
   name: string;
@@ -31,6 +31,22 @@ interface CatalogEntry {
   id: string;
   name: string;
   code: string;
+}
+
+interface ProcessResults {
+  alerts: number;
+  processes: number;
+  processesWithAlerts: number;
+  flagCounts: Record<string, number>;
+  coverage: Record<string, number>;
+  totalRecords: number;
+  validRecords: number;
+  rejectedRecords: number;
+  evaluableProcesses: number;
+  nonEvaluableProcesses: number;
+  indicatorsExecuted: number;
+  processingTimeMs: number;
+  uploadId: string;
 }
 
 // V1 required columns (16)
@@ -59,7 +75,6 @@ const V2_NEW_OPTIONAL = [
 const ALL_V1 = [...V1_REQUIRED, ...V1_OPTIONAL];
 const ALL_V2 = [...V1_REQUIRED, ...V2_NEW_REQUIRED, ...V1_OPTIONAL, ...V2_NEW_OPTIONAL];
 
-// Field descriptions for tooltips
 const FIELD_DESCRIPTIONS: Record<string, string> = {
   process_id: 'Identificador único del proceso de contratación.',
   institution_id: 'Código único de la institución compradora. Permite consolidar correctamente procesos de una misma institución. Ejemplo: INST-001',
@@ -173,7 +188,15 @@ const EXAMPLE_ROWS: Record<string, string>[] = [
   },
 ];
 
-const STEPS = ['Datos y plantilla', 'Cargar y validar', 'Previsualizar y confirmar', 'Resultados'];
+const STEPS = [
+  'Datos de la carga',
+  'Descargar plantilla',
+  'Cargar archivo',
+  'Validar',
+  'Previsualizar',
+  'Confirmar',
+  'Resultados',
+];
 
 const TRUE_VALUES = new Set(['true', '1', 'sí', 'si', 'yes', 'verdadero', 'y']);
 const FALSE_VALUES = new Set(['false', '0', 'no', 'falso', 'n']);
@@ -188,9 +211,7 @@ function parseBool(val: string): boolean | null {
 function normalizeDate(val: string): string | null {
   const v = val.trim();
   if (!v) return null;
-  // YYYY-MM-DD
   if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
-  // DD/MM/YYYY or DD-MM-YYYY
   const m = v.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
   if (m) {
     const day = m[1].padStart(2, '0');
@@ -278,14 +299,11 @@ function detectTemplateVersion(headers: string[]): 'v1' | 'v2' {
   return hasV2Col ? 'v2' : 'v1';
 }
 
-function computeFlagEvaluability(headers: string[], rows: Record<string, string>[]): Record<string, { available: boolean; partial: boolean; reason?: string }> {
-  const hasV2 = detectTemplateVersion(headers) === 'v2';
+function computeFlagEvaluability(headers: string[], _rows: Record<string, string>[]): Record<string, { available: boolean; partial: boolean; reason?: string }> {
   const result: Record<string, { available: boolean; partial: boolean; reason?: string }> = {};
 
-  // R003: needs publication_date + bid_deadline (both in V1)
   result.R003 = { available: true, partial: false };
 
-  // R018: prefers number_of_valid_bids, falls back to number_of_bidders
   if (headers.includes('number_of_valid_bids')) {
     result.R018 = { available: true, partial: false };
   } else if (headers.includes('number_of_bidders')) {
@@ -294,21 +312,18 @@ function computeFlagEvaluability(headers: string[], rows: Record<string, string>
     result.R018 = { available: false, partial: false, reason: 'No se encontró number_of_valid_bids ni number_of_bidders' };
   }
 
-  // R013: needs institution_id (V2) or institution (V1 fallback)
   if (headers.includes('institution_id') || headers.includes('institution')) {
     result.R013 = { available: true, partial: !headers.includes('institution_id'), reason: !headers.includes('institution_id') ? 'Usa nombre de institución como identificador. Se recomienda institution_id para mayor precisión.' : undefined };
   } else {
     result.R013 = { available: false, partial: false, reason: 'No se encontró institution_id ni institution' };
   }
 
-  // R040: needs institution_id + supplier_id
   if (headers.includes('supplier_id')) {
     result.R040 = { available: true, partial: !headers.includes('institution_id'), reason: !headers.includes('institution_id') ? 'Usa nombre de institución. Se recomienda institution_id para agrupación precisa.' : undefined };
   } else {
     result.R040 = { available: false, partial: false, reason: 'No se encontró supplier_id' };
   }
 
-  // R063: needs contract_document_published (V2)
   if (headers.includes('contract_document_published')) {
     result.R063 = { available: true, partial: false };
   } else {
@@ -334,12 +349,15 @@ export function UploadView({ onNavigate }: { onNavigate: (view: ViewKey) => void
   const [rejectedRows, setRejectedRows] = useState(0);
   const [flagEvaluability, setFlagEvaluability] = useState<Record<string, { available: boolean; partial: boolean; reason?: string }>>({});
   const [processing, setProcessing] = useState(false);
-  const [results, setResults] = useState<{ alerts: number; processes: number; flagCounts: Record<string, number>; coverage: Record<string, number> } | null>(null);
+  const [results, setResults] = useState<ProcessResults | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showAllColumns, setShowAllColumns] = useState(false);
+  const [templateDownloaded, setTemplateDownloaded] = useState(false);
 
   const [institutions, setInstitutions] = useState<CatalogEntry[]>([]);
   const [suppliers, setSuppliers] = useState<CatalogEntry[]>([]);
+
+  const processingStartRef = useRef<number>(0);
 
   useEffect(() => {
     supabase.from('institutions').select('id, name, code').eq('is_active', true).then(({ data }) => {
@@ -373,6 +391,7 @@ export function UploadView({ onNavigate }: { onNavigate: (view: ViewKey) => void
     a.download = `plantilla_sia_dinac_${version}${withExamples ? '_con_ejemplo' : ''}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+    setTemplateDownloaded(true);
     logAction('template_downloaded', 'data', `Descarga plantilla ${version} ${withExamples ? 'con ejemplo' : 'vacía'}`);
   };
 
@@ -420,7 +439,6 @@ export function UploadView({ onNavigate }: { onNavigate: (view: ViewKey) => void
     const version = detectTemplateVersion(headers);
     setTemplateVersion(version);
 
-    // Check required columns
     const requiredCols = version === 'v2' ? [...V1_REQUIRED, ...V2_NEW_REQUIRED] : V1_REQUIRED;
     const missingCols = requiredCols.filter((c) => !headers.includes(c));
     if (missingCols.length > 0) {
@@ -460,7 +478,6 @@ export function UploadView({ onNavigate }: { onNavigate: (view: ViewKey) => void
         validationIssues.push({ row: rowNum, column: 'number_of_valid_bids', type: 'warning', message: `Número de ofertas válidas no válido: ${row.number_of_valid_bids}` });
       }
 
-      // V2 boolean validation
       if (version === 'v2' && row.contract_document_published) {
         const boolVal = parseBool(row.contract_document_published);
         if (boolVal === null) {
@@ -468,7 +485,6 @@ export function UploadView({ onNavigate }: { onNavigate: (view: ViewKey) => void
         }
       }
 
-      // V2: number_of_valid_bids <= number_of_bidders
       if (row.number_of_valid_bids && row.number_of_bidders) {
         const vb = parseInt(row.number_of_valid_bids);
         const nb = parseInt(row.number_of_bidders);
@@ -477,19 +493,17 @@ export function UploadView({ onNavigate }: { onNavigate: (view: ViewKey) => void
         }
       }
 
-      // Date validation
       ['publication_date', 'bid_deadline', 'award_date'].forEach((col) => {
         if (row[col]) {
           const normalized = normalizeDate(row[col]);
           if (!normalized) {
             validationIssues.push({ row: rowNum, column: col, type: 'warning', message: `Formato de fecha inválido (use AAAA-MM-DD): ${row[col]}` });
           } else {
-            row[col] = normalized; // Auto-normalize
+            row[col] = normalized;
           }
         }
       });
 
-      // Date logic
       const pub = row.publication_date, bid = row.bid_deadline, award = row.award_date;
       if (pub && bid && pub > bid) {
         validationIssues.push({ row: rowNum, column: 'bid_deadline', type: 'warning', message: 'La fecha de recepción es anterior a la de publicación' });
@@ -498,7 +512,6 @@ export function UploadView({ onNavigate }: { onNavigate: (view: ViewKey) => void
         validationIssues.push({ row: rowNum, column: 'award_date', type: 'warning', message: 'La fecha de adjudicación es anterior a la de recepción' });
       }
 
-      // Amount >= 0
       if (row.awarded_amount) {
         const amt = parseFloat(row.awarded_amount);
         if (!isNaN(amt) && amt < 0) validationIssues.push({ row: rowNum, column: 'awarded_amount', type: 'error', message: 'Monto adjudicado negativo' });
@@ -517,11 +530,13 @@ export function UploadView({ onNavigate }: { onNavigate: (view: ViewKey) => void
     setWarningRows(warningCount);
     setRejectedRows(errorRowNums.size);
     setFlagEvaluability(computeFlagEvaluability(headers, rows));
+    setStep(4);
   };
 
   const handleConfirmAndProcess = async () => {
     setProcessing(true);
     setError(null);
+    processingStartRef.current = Date.now();
 
     try {
       const { data: uploadData, error: uploadError } = await supabase
@@ -544,7 +559,6 @@ export function UploadView({ onNavigate }: { onNavigate: (view: ViewKey) => void
 
       logAction('data_uploaded', 'data', `Carga iniciada: ${formData.name}`, uploadData.id);
 
-      // Persist validation issues
       if (issues.length > 0) {
         const dqInserts = issues.slice(0, 200).map((issue) => ({
           upload_id: uploadData.id, row_number: issue.row, column_name: issue.column,
@@ -554,7 +568,6 @@ export function UploadView({ onNavigate }: { onNavigate: (view: ViewKey) => void
         await supabase.from('data_quality_issues').insert(dqInserts);
       }
 
-      // Build lookup maps
       const instMap = new Map<string, string>();
       institutions.forEach((i) => instMap.set(i.code.toLowerCase().trim(), i.id));
       const supMap = new Map<string, string>();
@@ -625,18 +638,30 @@ export function UploadView({ onNavigate }: { onNavigate: (view: ViewKey) => void
         body: { upload_id: uploadData.id, user_id: profile?.user_id },
       });
 
+      const processingTime = Date.now() - processingStartRef.current;
+
       if (ruleError) {
         setError('Los datos se cargaron pero hubo un error al procesar las banderas.');
       } else {
+        const evaluableCount = Object.values(flagEvaluability).filter((f) => f.available).length;
         setResults({
           alerts: ruleResult?.alerts_generated || 0,
           processes: ruleResult?.total_processes || parsedRows.length,
+          processesWithAlerts: ruleResult?.processes_with_alerts || 0,
           flagCounts: ruleResult?.flag_counts || {},
           coverage: ruleResult?.coverage || {},
+          totalRecords: parsedRows.length,
+          validRecords: validRows,
+          rejectedRecords: rejectedRows,
+          evaluableProcesses: ruleResult?.total_processes || insertedCount,
+          nonEvaluableProcesses: Math.max(0, insertedCount - (ruleResult?.total_processes || 0)),
+          indicatorsExecuted: evaluableCount,
+          processingTimeMs: processingTime,
+          uploadId: uploadData.id,
         });
-        logAction('indicator_processing', 'data', `Procesamiento: ${ruleResult?.alerts_generated || 0} alertas`, uploadData.id);
+        logAction('indicator_processing', 'data', `Procesamiento: ${ruleResult?.alerts_generated || 0} alertas en ${processingTime}ms`, uploadData.id);
+        setStep(7);
       }
-      setStep(4);
     } catch (err) {
       setError('Error inesperado: ' + (err instanceof Error ? err.message : 'desconocido'));
     }
@@ -646,35 +671,58 @@ export function UploadView({ onNavigate }: { onNavigate: (view: ViewKey) => void
   const resetWizard = () => {
     setStep(1); setFile(null); setParsedRows([]); setParsedHeaders([]); setIssues([]);
     setValidRows(0); setWarningRows(0); setRejectedRows(0); setResults(null); setError(null);
-    setFlagEvaluability({});
+    setFlagEvaluability({}); setTemplateDownloaded(false);
     setFormData({ name: '', period: '', source: '', institution_scope: '', description: '', confidentiality_level: 'internal' });
   };
 
   const previewColumns = showAllColumns ? parsedHeaders : ['process_id', 'institution_id', 'institution', 'procurement_method', 'supplier_name', 'number_of_valid_bids', 'awarded_amount', 'contract_status', 'contract_document_published'];
 
+  const canProceed = (() => {
+    switch (step) {
+      case 1: return formData.name.trim() !== '' && formData.period.trim() !== '';
+      case 2: return true;
+      case 3: return file !== null && parsedRows.length > 0;
+      case 4: return parsedRows.length > 0;
+      case 5: return parsedRows.length > 0;
+      case 6: return !processing;
+      default: return true;
+    }
+  })();
+
+  const nextStep = () => {
+    if (step < 7 && canProceed) setStep(step + 1);
+  };
+  const prevStep = () => {
+    if (step > 1) setStep(step - 1);
+  };
+
   return (
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Carga de datos</h1>
-        <p className="text-sm text-slate-500 mt-1">Asistente para cargar y procesar datos de contratación pública de DINAC.</p>
-        <p className="text-xs text-slate-400 mt-1">Complete los metadatos, descargue la plantilla V2 (o use V1 compatible), cargue su CSV y confirme el procesamiento.</p>
+        <p className="text-sm text-slate-500 mt-1">Asistente paso a paso para cargar y procesar datos de contratación pública.</p>
       </div>
 
-      {/* Steps */}
+      {/* Steps indicator */}
       <div className="card p-4">
         <div className="flex items-center gap-1 overflow-x-auto scrollbar-thin">
-          {STEPS.map((s, i) => (
-            <div key={s} className="flex items-center gap-1 flex-shrink-0">
-              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium ${
-                step === i + 1 ? 'bg-blue-900 text-white' : step > i + 1 ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'
-              }`}>
-                <span className="w-5 h-5 flex items-center justify-center rounded-full text-[10px]">
-                  {step > i + 1 ? <CheckCircle className="w-3.5 h-3.5" /> : i + 1}
-                </span>{s}
+          {STEPS.map((s, i) => {
+            const stepNum = i + 1;
+            const isCurrent = step === stepNum;
+            const isDone = step > stepNum;
+            return (
+              <div key={s} className="flex items-center gap-1 flex-shrink-0">
+                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  isCurrent ? 'bg-blue-900 text-white' : isDone ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'
+                }`}>
+                  <span className="w-5 h-5 flex items-center justify-center rounded-full text-[10px]">
+                    {isDone ? <CheckCircle className="w-3.5 h-3.5" /> : stepNum}
+                  </span>{s}
+                </div>
+                {i < STEPS.length - 1 && <div className={`w-3 h-px ${isDone ? 'bg-green-400' : 'bg-slate-300'}`} />}
               </div>
-              {i < STEPS.length - 1 && <div className="w-2 h-px bg-slate-300" />}
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -684,51 +732,54 @@ export function UploadView({ onNavigate }: { onNavigate: (view: ViewKey) => void
         </div>
       )}
 
-      {/* ============ Step 1 ============ */}
+      {/* ============ Step 1: Datos de la carga ============ */}
       {step === 1 && (
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
-          <div className="card p-6 lg:col-span-3 space-y-4">
-            <h2 className="text-lg font-semibold text-slate-900">Datos de la carga</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Nombre de la carga *</label>
-                <input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="input-field" placeholder="Ej: Contrataciones 2026-Q1" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Periodo *</label>
-                <input value={formData.period} onChange={(e) => setFormData({ ...formData, period: e.target.value })} className="input-field" placeholder="2026-Q1" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Fuente</label>
-                <input value={formData.source} onChange={(e) => setFormData({ ...formData, source: e.target.value })} className="input-field" placeholder="Ej: Portal de compras DINAC" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Institución o conjunto</label>
-                <input value={formData.institution_scope} onChange={(e) => setFormData({ ...formData, institution_scope: e.target.value })} className="input-field" placeholder="Ej: Todas las instituciones" />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Descripción</label>
-                <textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="input-field resize-y" rows={2} placeholder="Breve descripción de los datos cargados" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">Nivel de confidencialidad</label>
-                <select value={formData.confidentiality_level} onChange={(e) => setFormData({ ...formData, confidentiality_level: e.target.value })} className="input-field">
-                  <option value="internal">Uso interno</option>
-                  <option value="confidential">Confidencial</option>
-                  <option value="restricted">Restringido</option>
-                </select>
-              </div>
+        <div className="card p-6 space-y-4">
+          <h2 className="text-lg font-semibold text-slate-900">Datos de la carga</h2>
+          <p className="text-sm text-slate-500">Complete la información descriptiva de esta carga de datos.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Nombre de la carga *</label>
+              <input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="input-field" placeholder="Ej: Contrataciones 2026-Q1" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Periodo *</label>
+              <input value={formData.period} onChange={(e) => setFormData({ ...formData, period: e.target.value })} className="input-field" placeholder="2026-Q1" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Fuente</label>
+              <input value={formData.source} onChange={(e) => setFormData({ ...formData, source: e.target.value })} className="input-field" placeholder="Ej: Portal de compras DINAC" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Institución o conjunto</label>
+              <input value={formData.institution_scope} onChange={(e) => setFormData({ ...formData, institution_scope: e.target.value })} className="input-field" placeholder="Ej: Todas las instituciones" />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Descripción</label>
+              <textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="input-field resize-y" rows={2} placeholder="Breve descripción de los datos cargados" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Nivel de confidencialidad</label>
+              <select value={formData.confidentiality_level} onChange={(e) => setFormData({ ...formData, confidentiality_level: e.target.value })} className="input-field">
+                <option value="internal">Uso interno</option>
+                <option value="confidential">Confidencial</option>
+                <option value="restricted">Restringido</option>
+              </select>
             </div>
           </div>
+        </div>
+      )}
 
-          <div className="card p-6 lg:col-span-2 space-y-4">
+      {/* ============ Step 2: Descargar plantilla ============ */}
+      {step === 2 && (
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
+          <div className="card p-6 lg:col-span-3 space-y-4">
             <div className="flex items-center gap-2">
               <FileSpreadsheet className="w-5 h-5 text-blue-700" />
-              <h2 className="text-lg font-semibold text-slate-900">Plantilla de carga</h2>
+              <h2 className="text-lg font-semibold text-slate-900">Descargar plantilla</h2>
               <HelpTooltip text="La plantilla V2 incluye 30 columnas (19 obligatorias, 11 opcionales) para el análisis completo de las cinco banderas. La V1 (24 columnas) sigue siendo compatible pero no permite evaluar R063." />
             </div>
 
-            {/* V2 templates */}
             <div className="space-y-2">
               <p className="text-xs font-semibold text-slate-700">Plantilla V2 (recomendada) — 30 columnas</p>
               <button onClick={() => downloadTemplate('v2', true)} className="btn-primary w-full justify-start">
@@ -743,7 +794,6 @@ export function UploadView({ onNavigate }: { onNavigate: (view: ViewKey) => void
               </button>
             </div>
 
-            {/* V1 templates */}
             <div className="space-y-2 pt-2 border-t border-slate-100">
               <p className="text-xs font-semibold text-slate-500">Plantilla V1 (compatible) — 24 columnas</p>
               <button onClick={() => downloadTemplate('v1', false)} className="btn-secondary w-full justify-start text-xs">
@@ -752,18 +802,24 @@ export function UploadView({ onNavigate }: { onNavigate: (view: ViewKey) => void
               </button>
             </div>
 
+            {templateDownloaded && (
+              <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-2.5 flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
+                <p className="text-xs text-green-700">Plantilla descargada. Puede continuar al siguiente paso.</p>
+              </div>
+            )}
+
             <InfoNote variant="info">
               V2 agrega: institution_id, number_of_valid_bids, contract_document_published, contract_document_type, contract_document_url, contract_document_publication_date. Los archivos V1 siguen funcionando; las banderas calculables dependen de los campos disponibles.
             </InfoNote>
           </div>
 
-          {/* Field descriptions */}
-          <div className="card p-6 lg:col-span-5">
+          <div className="card p-6 lg:col-span-2">
             <h3 className="text-sm font-semibold text-slate-900 mb-3">Campos de la plantilla</h3>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="space-y-3">
               <div>
-                <p className="text-xs font-semibold text-slate-700 mb-2">Campos obligatorios V2 (19)</p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                <p className="text-xs font-semibold text-slate-700 mb-2">Obligatorios V2 (19)</p>
+                <div className="grid grid-cols-2 gap-1.5">
                   {[...V1_REQUIRED, ...V2_NEW_REQUIRED].map((c) => (
                     <div key={c} className="relative group">
                       <span className={`text-xs font-mono px-2 py-1 rounded border block ${V2_NEW_REQUIRED.includes(c) ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
@@ -780,8 +836,8 @@ export function UploadView({ onNavigate }: { onNavigate: (view: ViewKey) => void
                 <p className="text-[10px] text-blue-600 mt-1">★ Nuevos en V2</p>
               </div>
               <div>
-                <p className="text-xs font-semibold text-slate-700 mb-2">Campos opcionales V2 (11)</p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                <p className="text-xs font-semibold text-slate-700 mb-2">Opcionales V2 (11)</p>
+                <div className="grid grid-cols-2 gap-1.5">
                   {[...V1_OPTIONAL, ...V2_NEW_OPTIONAL].map((c) => (
                     <div key={c} className="relative group">
                       <span className={`text-xs font-mono px-2 py-1 rounded border block ${V2_NEW_OPTIONAL.includes(c) ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-white text-slate-500 border-slate-200'}`}>
@@ -798,42 +854,44 @@ export function UploadView({ onNavigate }: { onNavigate: (view: ViewKey) => void
               </div>
             </div>
           </div>
-
-          <div className="lg:col-span-5 flex justify-end">
-            <button onClick={() => setStep(2)} disabled={!formData.name || !formData.period} className="btn-primary">
-              Continuar <ArrowRight className="w-4 h-4" />
-            </button>
-          </div>
         </div>
       )}
 
-      {/* ============ Step 2 ============ */}
-      {step === 2 && (
-        <div className="space-y-5">
-          <div className="card p-6 max-w-2xl space-y-4">
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-semibold text-slate-900">Cargar archivo</h2>
-              <HelpTooltip text="Se aceptan archivos CSV separados por comas o punto y coma, con o sin BOM. El sistema detecta automáticamente la versión de la plantilla y valida estructura, tipos, fechas y lógica." />
-            </div>
-              <p className="text-sm text-slate-600">
-                Formatos: CSV, Excel (.xlsx, .xls) y JSON. Máximo: {securitySettings?.max_file_size_mb || 25} MB.
-              </p>
-            <div
-              className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center hover:border-blue-500 transition-colors cursor-pointer"
-              onClick={() => document.getElementById('file-input')?.click()}
-              onDrop={(e) => { e.preventDefault(); if (e.dataTransfer.files[0]) handleFileChange(e.dataTransfer.files[0]); }}
-              onDragOver={(e) => e.preventDefault()}
-            >
-              <Upload className="w-8 h-8 mx-auto text-slate-400 mb-2" />
-              <p className="text-sm text-slate-600">{file ? file.name : 'Haga clic o arrastre un archivo aquí'}</p>
-              <p className="text-xs text-slate-400 mt-1">CSV, Excel o JSON</p>
-              <input id="file-input" type="file" accept=".csv,.xlsx,.xls,.json" className="hidden" onChange={(e) => e.target.files?.[0] && handleFileChange(e.target.files[0])} />
-            </div>
+      {/* ============ Step 3: Cargar archivo ============ */}
+      {step === 3 && (
+        <div className="card p-6 max-w-2xl space-y-4">
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-semibold text-slate-900">Cargar archivo</h2>
+            <HelpTooltip text="Se aceptan archivos CSV separados por comas o punto y coma, con o sin BOM. El sistema detecta automáticamente la versión de la plantilla y valida estructura, tipos, fechas y lógica." />
           </div>
+          <p className="text-sm text-slate-600">
+            Formatos: CSV, Excel (.xlsx, .xls) y JSON. Máximo: {securitySettings?.max_file_size_mb || 25} MB.
+          </p>
+          <div
+            className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center hover:border-blue-500 transition-colors cursor-pointer"
+            onClick={() => document.getElementById('file-input')?.click()}
+            onDrop={(e) => { e.preventDefault(); if (e.dataTransfer.files[0]) handleFileChange(e.dataTransfer.files[0]); }}
+            onDragOver={(e) => e.preventDefault()}
+          >
+            <Upload className="w-8 h-8 mx-auto text-slate-400 mb-2" />
+            <p className="text-sm text-slate-600">{file ? file.name : 'Haga clic o arrastre un archivo aquí'}</p>
+            <p className="text-xs text-slate-400 mt-1">CSV, Excel o JSON</p>
+            <input id="file-input" type="file" accept=".csv,.xlsx,.xls,.json" className="hidden" onChange={(e) => e.target.files?.[0] && handleFileChange(e.target.files[0])} />
+          </div>
+          {file && parsedRows.length > 0 && (
+            <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-2.5 flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
+              <p className="text-xs text-green-700">Archivo cargado: {file.name} — {parsedRows.length} registros detectados (plantilla {templateVersion.toUpperCase()}). Validación completada automáticamente.</p>
+            </div>
+          )}
+        </div>
+      )}
 
+      {/* ============ Step 4: Validar ============ */}
+      {step === 4 && (
+        <div className="space-y-5">
           {file && parsedRows.length > 0 && (
             <>
-              {/* Template version detected */}
               <div className={`card p-4 ${templateVersion === 'v1' ? 'border-amber-300' : 'border-green-300'}`}>
                 <div className="flex items-center gap-2">
                   <Info className={`w-4 h-4 ${templateVersion === 'v1' ? 'text-amber-600' : 'text-green-600'}`} />
@@ -848,17 +906,15 @@ export function UploadView({ onNavigate }: { onNavigate: (view: ViewKey) => void
                 )}
               </div>
 
-              {/* Validation results */}
               <div className="card p-6 space-y-4">
                 <h2 className="text-lg font-semibold text-slate-900">Resultado de la validación</h2>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-center"><p className="text-2xl font-bold text-slate-700">{parsedRows.length}</p><p className="text-xs text-slate-500">Total de filas</p></div>
-                  <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-center"><CheckCircle className="w-5 h-5 text-green-600 mx-auto mb-1" /><p className="text-2xl font-bold text-green-700">{validRows}</p><p className="text-xs text-green-600">Válidos</p></div>
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-center"><p className="text-2xl font-bold text-slate-700">{parsedRows.length}</p><p className="text-xs text-slate-500">Registros totales</p></div>
+                  <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-center"><CheckCircle className="w-5 h-5 text-green-600 mx-auto mb-1" /><p className="text-2xl font-bold text-green-700">{validRows}</p><p className="text-xs text-green-600">Registros válidos</p></div>
                   <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-center"><AlertCircle className="w-5 h-5 text-amber-600 mx-auto mb-1" /><p className="text-2xl font-bold text-amber-700">{warningRows}</p><p className="text-xs text-amber-600">Advertencias</p></div>
-                  <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-center"><XCircle className="w-5 h-5 text-red-600 mx-auto mb-1" /><p className="text-2xl font-bold text-red-700">{rejectedRows}</p><p className="text-xs text-red-600">Rechazados</p></div>
+                  <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-center"><XCircle className="w-5 h-5 text-red-600 mx-auto mb-1" /><p className="text-2xl font-bold text-red-700">{rejectedRows}</p><p className="text-xs text-red-600">Errores</p></div>
                 </div>
 
-                {/* Flag evaluability */}
                 <div className="rounded-lg border border-slate-200 p-4">
                   <h3 className="text-sm font-semibold text-slate-700 mb-3">Banderas que podrán calcularse</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
@@ -902,64 +958,61 @@ export function UploadView({ onNavigate }: { onNavigate: (view: ViewKey) => void
               </div>
             </>
           )}
-
-          <div className="flex justify-between">
-            <button onClick={() => setStep(1)} className="btn-secondary"><ArrowLeft className="w-4 h-4" /> Atrás</button>
-            <button onClick={() => setStep(3)} disabled={!file || !parsedRows.length} className="btn-primary">Continuar <ArrowRight className="w-4 h-4" /></button>
-          </div>
         </div>
       )}
 
-      {/* ============ Step 3 ============ */}
-      {step === 3 && (
-        <div className="space-y-5">
-          <div className="card p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-semibold text-slate-900">Previsualización de datos</h2>
-                <HelpTooltip text="Revise que los datos se interpretaron correctamente. Solo los registros válidos se procesarán." />
-              </div>
-              <div className="flex items-center gap-4 text-sm">
-                <span className="text-green-700">Válidos: <strong>{validRows}</strong></span>
-                <span className="text-amber-700">Advertencias: <strong>{warningRows}</strong></span>
-                <span className="text-red-700">Rechazados: <strong>{rejectedRows}</strong></span>
-                <span className="text-slate-600">Completitud: <strong>{parsedRows.length > 0 ? ((validRows / parsedRows.length) * 100).toFixed(0) : 0}%</strong></span>
-              </div>
-            </div>
-
+      {/* ============ Step 5: Previsualizar ============ */}
+      {step === 5 && (
+        <div className="card p-6 space-y-4">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <button onClick={() => setShowAllColumns(!showAllColumns)} className="text-xs text-blue-700 hover:text-blue-800 flex items-center gap-1">
-                {showAllColumns ? <><EyeOff className="w-3.5 h-3.5" /> Ocultar columnas extra</> : <><Eye className="w-3.5 h-3.5" /> Ver todas las columnas</>}
-              </button>
-              <span className="text-[10px] text-slate-400">({showAllColumns ? parsedHeaders.length : previewColumns.length} de {parsedHeaders.length})</span>
+              <h2 className="text-lg font-semibold text-slate-900">Previsualización de datos</h2>
+              <HelpTooltip text="Revise que los datos se interpretaron correctamente. Solo los registros válidos se procesarán." />
             </div>
-
-            <div className="max-h-96 overflow-auto scrollbar-thin border border-slate-200 rounded-lg">
-              <table className="w-full text-xs">
-                <thead className="bg-slate-50 sticky top-0">
-                  <tr>
-                    {previewColumns.map((c) => <th key={c} className="px-3 py-2 text-left font-semibold text-slate-600 whitespace-nowrap">{c}</th>)}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {parsedRows.slice(0, 20).map((row, i) => (
-                    <tr key={i} className="hover:bg-slate-50">
-                      {previewColumns.map((c) => <td key={c} className="px-3 py-2 text-slate-700 whitespace-nowrap">{row[c] || '—'}</td>)}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="flex items-center gap-4 text-sm">
+              <span className="text-green-700">Válidos: <strong>{validRows}</strong></span>
+              <span className="text-amber-700">Advertencias: <strong>{warningRows}</strong></span>
+              <span className="text-red-700">Rechazados: <strong>{rejectedRows}</strong></span>
+              <span className="text-slate-600">Completitud: <strong>{parsedRows.length > 0 ? ((validRows / parsedRows.length) * 100).toFixed(0) : 0}%</strong></span>
             </div>
-            {parsedRows.length > 20 && <p className="text-xs text-slate-400">Mostrando 20 de {parsedRows.length} registros.</p>}
           </div>
 
+          <div className="flex items-center gap-2">
+            <button onClick={() => setShowAllColumns(!showAllColumns)} className="text-xs text-blue-700 hover:text-blue-800 flex items-center gap-1">
+              {showAllColumns ? <><EyeOff className="w-3.5 h-3.5" /> Ocultar columnas extra</> : <><Eye className="w-3.5 h-3.5" /> Ver todas las columnas</>}
+            </button>
+            <span className="text-[10px] text-slate-400">({showAllColumns ? parsedHeaders.length : previewColumns.length} de {parsedHeaders.length})</span>
+          </div>
+
+          <div className="max-h-96 overflow-auto scrollbar-thin border border-slate-200 rounded-lg">
+            <table className="w-full text-xs">
+              <thead className="bg-slate-50 sticky top-0">
+                <tr>
+                  {previewColumns.map((c) => <th key={c} className="px-3 py-2 text-left font-semibold text-slate-600 whitespace-nowrap">{c}</th>)}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {parsedRows.slice(0, 20).map((row, i) => (
+                  <tr key={i} className="hover:bg-slate-50">
+                    {previewColumns.map((c) => <td key={c} className="px-3 py-2 text-slate-700 whitespace-nowrap">{row[c] || '—'}</td>)}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {parsedRows.length > 20 && <p className="text-xs text-slate-400">Mostrando 20 de {parsedRows.length} registros.</p>}
+        </div>
+      )}
+
+      {/* ============ Step 6: Confirmar ============ */}
+      {step === 6 && (
+        <div className="space-y-5">
           <div className="card p-6 max-w-2xl space-y-4">
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-semibold text-slate-900">Confirmar carga</h2>
-            </div>
+            <h2 className="text-lg font-semibold text-slate-900">Confirmar procesamiento</h2>
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-1.5">
               <p className="text-sm"><strong>Nombre:</strong> {formData.name}</p>
               <p className="text-sm"><strong>Periodo:</strong> {formData.period}</p>
+              <p className="text-sm"><strong>Fuente:</strong> {formData.source || '—'}</p>
               <p className="text-sm"><strong>Plantilla:</strong> {templateVersion.toUpperCase()} ({templateVersion === 'v2' ? '30 columnas' : '24 columnas'})</p>
               <p className="text-sm"><strong>Registros:</strong> {parsedRows.length} ({validRows} válidos, {warningRows} con advertencias, {rejectedRows} rechazados)</p>
               <p className="text-sm"><strong>Confidencialidad:</strong> {formData.confidentiality_level}</p>
@@ -968,42 +1021,58 @@ export function UploadView({ onNavigate }: { onNavigate: (view: ViewKey) => void
               Al confirmar, los datos se procesarán y se ejecutarán las cinco banderas rojas. Los registros heredan el nivel de confidencialidad de la carga. Esta acción queda registrada en la bitácora.
             </InfoNote>
           </div>
-
-          <div className="flex justify-between">
-            <button onClick={() => setStep(2)} className="btn-secondary"><ArrowLeft className="w-4 h-4" /> Atrás</button>
-            <button onClick={handleConfirmAndProcess} disabled={processing} className="btn-primary">
-              {processing ? <><Loader className="w-4 h-4 animate-spin" /> Procesando...</> : <>Confirmar y procesar <ArrowRight className="w-4 h-4" /></>}
-            </button>
-          </div>
         </div>
       )}
 
-      {/* ============ Step 4: Results ============ */}
-      {step === 4 && (
+      {/* ============ Step 7: Resultados ============ */}
+      {step === 7 && results && (
         <div className="space-y-5">
-          <div className="card p-8 max-w-2xl mx-auto text-center space-y-4">
-            <div className="w-16 h-16 mx-auto rounded-full bg-green-100 flex items-center justify-center">
-              <CheckCircle className="w-8 h-8 text-green-600" />
+          <div className="card p-8 space-y-6">
+            <div className="text-center space-y-2">
+              <div className="w-16 h-16 mx-auto rounded-full bg-green-100 flex items-center justify-center">
+                <CheckCircle className="w-8 h-8 text-green-600" />
+              </div>
+              <h2 className="text-xl font-bold text-slate-900">Carga procesada correctamente</h2>
+              <p className="text-sm text-slate-600">{results.processes} procesos analizados en {(results.processingTimeMs / 1000).toFixed(2)} segundos</p>
             </div>
-            <h2 className="text-xl font-bold text-slate-900">Carga procesada correctamente</h2>
-            {results && (
-              <>
-                <p className="text-sm text-slate-600">{results.processes} procesos analizados</p>
-                <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 max-w-2xl mx-auto">
-                  {Object.entries(results.flagCounts).map(([code, count]) => (
-                    <div key={code} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                      <p className="text-2xl font-bold text-slate-900">{count}</p>
-                      <p className="text-[10px] text-slate-500 mt-1">{INDICATOR_SHORT[code] || code}</p>
-                      <p className="text-[9px] text-slate-400">{code}</p>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
+
+            {/* Main metrics grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+              <ResultStat label="Registros procesados" value={results.validRecords} color="blue" />
+              <ResultStat label="Registros rechazados" value={results.rejectedRecords} color="red" />
+              <ResultStat label="Procesos evaluables" value={results.evaluableProcesses} color="green" />
+              <ResultStat label="Procesos no evaluables" value={results.nonEvaluableProcesses} color="slate" />
+              <ResultStat label="Alertas generadas" value={results.alerts} color="amber" />
+              <ResultStat label="Indicadores ejecutados" value={results.indicatorsExecuted} color="blue" />
+            </div>
+
+            {/* Processing time */}
+            <div className="flex items-center justify-center gap-6 rounded-lg border border-slate-200 bg-slate-50 px-5 py-3">
+              <div className="flex items-center gap-2">
+                <Loader className="w-4 h-4 text-slate-400" />
+                <span className="text-sm text-slate-600">Tiempo de procesamiento: <strong>{(results.processingTimeMs / 1000).toFixed(2)}s</strong></span>
+              </div>
+              <div className="w-px h-5 bg-slate-300" />
+              <span className="text-sm text-slate-600">ID de carga: <strong className="font-mono text-xs">{results.uploadId.slice(0, 8)}</strong></span>
+            </div>
+
+            {/* Alerts by indicator */}
+            <div className="rounded-lg border border-slate-200 p-4">
+              <h3 className="text-sm font-semibold text-slate-700 mb-3">Alertas por indicador</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
+                {Object.entries(results.flagCounts).map(([code, count]) => (
+                  <div key={code} className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-center">
+                    <p className="text-2xl font-bold text-slate-900">{count}</p>
+                    <p className="text-[10px] text-slate-500 mt-1">{INDICATOR_SHORT[code] || code}</p>
+                    <p className="text-[9px] text-slate-400">{code}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
 
             {/* Coverage / data quality */}
-            {results?.coverage && Object.keys(results.coverage).length > 0 && (
-              <div className="text-left rounded-lg border border-slate-200 p-4 mt-4">
+            {results.coverage && Object.keys(results.coverage).length > 0 && (
+              <div className="rounded-lg border border-slate-200 p-4">
                 <h3 className="text-sm font-semibold text-slate-700 mb-3">Calidad y cobertura de datos</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
                   <CoverageItem label="Con institution_id" value={results.coverage.with_institution_code} total={results.coverage.total} />
@@ -1021,6 +1090,21 @@ export function UploadView({ onNavigate }: { onNavigate: (view: ViewKey) => void
                 </div>
               </div>
             )}
+
+            {/* Bitácora */}
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+              <h3 className="text-sm font-semibold text-blue-900 mb-2">Bitácora de la carga</h3>
+              <div className="space-y-1 text-xs text-blue-800">
+                <p>Nombre: {formData.name} — Periodo: {formData.period}</p>
+                <p>Archivo: {file?.name || 'N/A'} — Tipo: {file?.name.split('.').pop()?.toUpperCase() || 'N/A'}</p>
+                <p>Registros: {results.totalRecords} totales, {results.validRecords} válidos, {results.rejectedRecords} rechazados</p>
+                <p>Procesos: {results.evaluableProcesses} evaluables, {results.nonEvaluableProcesses} no evaluables</p>
+                <p>Indicadores ejecutados: {results.indicatorsExecuted} de 5</p>
+                <p>Alertas generadas: {results.alerts} ({Object.entries(results.flagCounts).filter(([, v]) => v > 0).map(([k, v]) => `${k}=${v}`).join(', ') || 'ninguna'})</p>
+                <p>Tiempo de procesamiento: {(results.processingTimeMs / 1000).toFixed(2)} segundos</p>
+                <p>Fecha: {new Date().toLocaleString('es-SV')}</p>
+              </div>
+            </div>
           </div>
 
           <InfoNote variant="warning">
@@ -1034,6 +1118,40 @@ export function UploadView({ onNavigate }: { onNavigate: (view: ViewKey) => void
           </div>
         </div>
       )}
+
+      {/* Navigation buttons */}
+      {step < 7 && (
+        <div className="flex justify-between">
+          <button onClick={prevStep} disabled={step === 1} className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed">
+            <ArrowLeft className="w-4 h-4" /> Atrás
+          </button>
+          {step === 6 ? (
+            <button onClick={handleConfirmAndProcess} disabled={!canProceed || processing} className="btn-primary">
+              {processing ? <><Loader className="w-4 h-4 animate-spin" /> Procesando...</> : <>Confirmar y procesar <ArrowRight className="w-4 h-4" /></>}
+            </button>
+          ) : (
+            <button onClick={nextStep} disabled={!canProceed} className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed">
+              Continuar <ArrowRight className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ResultStat({ label, value, color }: { label: string; value: number; color: 'blue' | 'red' | 'green' | 'amber' | 'slate' }) {
+  const colorMap = {
+    blue: 'border-blue-200 bg-blue-50 text-blue-700',
+    red: 'border-red-200 bg-red-50 text-red-700',
+    green: 'border-green-200 bg-green-50 text-green-700',
+    amber: 'border-amber-200 bg-amber-50 text-amber-700',
+    slate: 'border-slate-200 bg-slate-50 text-slate-700',
+  };
+  return (
+    <div className={`rounded-lg border p-4 text-center ${colorMap[color]}`}>
+      <p className="text-2xl font-bold">{value}</p>
+      <p className="text-[10px] mt-1 opacity-80">{label}</p>
     </div>
   );
 }
