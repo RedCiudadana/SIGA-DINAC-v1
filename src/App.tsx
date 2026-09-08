@@ -13,6 +13,7 @@ import { DocsView } from '@/screens/DocsView';
 import { TutorialsView } from '@/screens/TutorialsView';
 import { ProfileView } from '@/screens/ProfileView';
 import { ConfigPanel, type ConfigTab } from '@/screens/ConfigPanel';
+import { LoadingScreen } from '@/components/LoadingScreen';
 
 function AppContent() {
   const { session, profile, loading, hasPermission } = useAuth();
@@ -32,14 +33,7 @@ function AppContent() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-100">
-        <div className="text-center">
-          <div className="w-10 h-10 border-3 border-blue-900 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-sm text-slate-500">Cargando sistema...</p>
-        </div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   if (!session || !profile) {
