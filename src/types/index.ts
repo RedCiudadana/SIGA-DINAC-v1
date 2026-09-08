@@ -384,3 +384,16 @@ export const ROLE_LABELS: Record<string, string> = {
   super_admin: 'Super Administrador',
   fiscalization: 'Fiscalización',
 };
+
+export const INDICATOR_RULE_EXPLANATIONS: Record<string, string> = {
+  R018: 'El indicador se activa cuando un proceso bajo una modalidad competitiva registra una única oferta válida recibida.',
+  R003: 'El indicador se activa cuando el plazo entre la publicación y la recepción de ofertas es inferior al mínimo configurado para la modalidad de contratación.',
+  R063: 'El indicador se activa cuando existe adjudicación pero no se ha publicado el contrato o documento contractual, transcurrido el período de gracia configurado.',
+  R013: 'El indicador se activa cuando la proporción de procesos no competitivos de una institución supera el porcentaje umbral configurado.',
+  R040: 'El indicador se activa cuando un proveedor concentra un porcentaje elevado de contratos y monto adjudicado dentro de una institución, superando los umbrales configurados.',
+  single_bidder: 'El indicador se activa cuando un proceso bajo una modalidad competitiva registra una única oferta válida recibida.',
+  short_timelines: 'El indicador se activa cuando el plazo entre la publicación y la recepción de ofertas es inferior al mínimo configurado para la modalidad de contratación.',
+  contract_splitting: 'El indicador se activa cuando existe adjudicación pero no se ha publicado el contrato o documento contractual, transcurrido el período de gracia configurado.',
+  non_competitive_methods: 'El indicador se activa cuando la proporción de procesos no competitivos de una institución supera el porcentaje umbral configurado.',
+  award_concentration: 'El indicador se activa cuando un proveedor concentra un porcentaje elevado de contratos y monto adjudicado dentro de una institución, superando los umbrales configurados.',
+};

@@ -9,8 +9,10 @@ import {
   ALERT_STATUS_LABELS, ALERT_STATUS_COLORS,
   PRIORITY_LABELS, PRIORITY_COLORS,
   INDICATOR_LABELS, INDICATOR_LEVEL_LABEL,
+  INDICATOR_RULE_EXPLANATIONS,
   type Alert, type AlertComment, type AlertStatusHistory,
 } from '@/types';
+import { Lightbulb, CheckCircle2, FileCheck2, Calendar, GitBranch } from 'lucide-react';
 import type { ViewKey } from '@/components/AppShell';
 import { HelpTooltip } from '@/components/HelpUI';
 
@@ -180,6 +182,9 @@ export function AlertDetailView({ alertId, onNavigate }: AlertDetailViewProps) {
           Esta alerta es una señal preventiva generada mediante reglas de análisis. No constituye por sí misma evidencia de irregularidad, responsabilidad administrativa, fraude o corrupción. Requiere revisión técnica y documental.
         </p>
       </div>
+
+      {/* ¿Por qué se generó esta alerta? */}
+      <ExplainabilitySection alert={alert} dataUsed={dataUsed} />
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-slate-200">
@@ -479,6 +484,100 @@ export function AlertDetailView({ alertId, onNavigate }: AlertDetailViewProps) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function getObservedResult(alert: Alert, dataUsed: Record<string, unknown> | null): string {
+  const code = alert.indicator_code;
+  switch (code) {
+    case 'R018':
+    case 'single_bidder': {
+      const valid = dataUsed?.number_of_valid_bids ?? dataUsed?.number_of_bidders ?? 1;
+      return `${valid} oferta válida recibida`;
+    }
+    case 'R003':
+    case 'short_timelines': {
+      const days = dataUsed?.days_between ?? dataUsed?.days ?? '—';
+      return `${days} día(s) entre publicación y recepción de ofertas`;
+    }
+    case 'R063':
+    case 'contract_splitting': {
+      return dataUsed?.contract_published === false || dataUsed?.contract_document_published === false
+        ? 'Sin documento contractual publicado'
+        : 'Documento contractual no publicado dentro del período de gracia';
+    }
+    case 'R013':
+    case 'non_competitive_methods': {
+      const pct = dataUsed?.non_competitive_percentage ?? dataUsed?.percentage ?? '—';
+      return `${pct}% de procesos no competitivos`;
+    }
+    case 'R040':
+    case 'award_concentration': {
+      const pct = dataUsed?.concentration_percentage ?? dataUsed?.percentage ?? '—';
+      return `${pct}% de concentración del proveedor`;
+    }
+    default:
+      return alert.calculation_detail || '—';
+  }
+}
+
+function getConfidence(alert: Alert): string {
+  if (alert.quality_note) return 'Media';
+  return 'Alta';
+}
+
+function ExplainabilitySection({ alert, dataUsed }: { alert: Alert; dataUsed: Record<string, unknown> | null }) {
+  const indicatorCode = alert.indicator_code;
+  const indicatorName = INDICATOR_LABELS[indicatorCode] || indicatorCode;
+  const ruleExplanation = INDICATOR_RULE_EXPLANATIONS[indicatorCode] || 'Regla de análisis automático aplicada a los datos del proceso.';
+  const observedResult = getObservedResult(alert, dataUsed);
+  const confidence = getConfidence(alert);
+  const calcDate = new Date(alert.created_at).toLocaleDateString('es-SV');
+  const indicatorVersion = alert.indicator?.current_version ? `${alert.indicator.current_version}.0` : '1.0';
+
+  const rows = [
+    { label: 'Indicador', value: indicatorName },
+    { label: 'Resultado observado', value: observedResult },
+    { label: 'Regla', value: ruleExplanation },
+    { label: 'Resultado', value: 'Alerta activada', highlight: true },
+    { label: 'Confianza del dato', value: confidence, withIcon: confidence === 'Alta' ? CheckCircle2 : undefined, iconColor: confidence === 'Alta' ? 'text-emerald-600' : 'text-amber-600' },
+    { label: 'Fecha de cálculo', value: calcDate, withIcon: Calendar, iconColor: 'text-slate-400' },
+    { label: 'Versión del indicador', value: indicatorVersion, withIcon: GitBranch, iconColor: 'text-slate-400' },
+  ];
+
+  return (
+    <div className="rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-slate-50 overflow-hidden">
+      <div className="flex items-center gap-2.5 px-5 py-3.5 bg-blue-900 text-white">
+        <Lightbulb className="w-5 h-5 flex-shrink-0" />
+        <h2 className="text-sm font-semibold">¿Por qué se generó esta alerta?</h2>
+      </div>
+      <div className="p-5">
+        <dl className="space-y-0">
+          {rows.map((row, i) => {
+            const Icon = row.withIcon;
+            return (
+              <div
+                key={row.label}
+                className={`flex items-start gap-3 py-2.5 ${i < rows.length - 1 ? 'border-b border-slate-200/70' : ''}`}
+              >
+                <dt className="w-40 flex-shrink-0 text-xs font-medium text-slate-500 uppercase tracking-wide pt-0.5">
+                  {row.label}
+                </dt>
+                <dd className={`flex items-center gap-1.5 text-sm flex-1 ${row.highlight ? 'font-semibold text-emerald-700' : 'text-slate-800'}`}>
+                  {Icon && <Icon className={`w-4 h-4 flex-shrink-0 ${row.iconColor || ''}`} />}
+                  {row.value}
+                </dd>
+              </div>
+            );
+          })}
+        </dl>
+        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50/80 px-4 py-3">
+          <p className="text-xs text-amber-800 leading-relaxed">
+            Esta alerta constituye una señal preventiva y requiere revisión técnica. No representa por sí misma evidencia de irregularidad, responsabilidad administrativa, fraude o corrupción.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
