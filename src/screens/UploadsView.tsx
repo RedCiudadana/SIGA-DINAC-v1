@@ -3,6 +3,7 @@ import { History, Loader } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import type { DataUpload } from '@/types';
 import type { ViewKey } from '@/components/AppShell';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { HelpTooltip, InfoNote } from '@/components/HelpUI';
 
 export function UploadsView({ onNavigate }: { onNavigate: (view: ViewKey) => void }) {
@@ -38,6 +39,7 @@ export function UploadsView({ onNavigate }: { onNavigate: (view: ViewKey) => voi
 
   return (
     <div className="space-y-5">
+      <Breadcrumbs items={[{ label: 'Historial de cargas' }]} onNavigate={onNavigate} />
       <div>
         <div className="flex items-center gap-1.5">
           <h1 className="text-2xl font-bold text-slate-900">Historial de cargas</h1>

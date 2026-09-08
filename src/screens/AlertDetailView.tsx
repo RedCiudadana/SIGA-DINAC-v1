@@ -15,6 +15,8 @@ import {
 import { Lightbulb, CheckCircle2, FileCheck2, Calendar, GitBranch } from 'lucide-react';
 import type { ViewKey } from '@/components/AppShell';
 import { HelpTooltip } from '@/components/HelpUI';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 interface AlertDetailViewProps {
   alertId: string;
@@ -33,6 +35,7 @@ export function AlertDetailView({ alertId, onNavigate }: AlertDetailViewProps) {
   const [statusReason, setStatusReason] = useState('');
   const [conclusion, setConclusion] = useState('');
   const [activeTab, setActiveTab] = useState<'detail' | 'comments' | 'history'>('detail');
+  const [showStatusConfirm, setShowStatusConfirm] = useState(false);
 
   const loadAlert = useCallback(async () => {
     setLoading(true);
@@ -97,6 +100,12 @@ export function AlertDetailView({ alertId, onNavigate }: AlertDetailViewProps) {
     if (!alert || !newStatus) return;
     const requiresJustification = newStatus === 'discarded' || newStatus === 'closed';
     if (requiresJustification && !statusReason.trim()) return;
+    setShowStatusConfirm(true);
+  };
+
+  const executeStatusChange = async () => {
+    if (!alert || !newStatus) return;
+    const requiresJustification = newStatus === 'discarded' || newStatus === 'closed';
 
     const { error } = await supabase
       .from('alerts')
@@ -122,6 +131,7 @@ export function AlertDetailView({ alertId, onNavigate }: AlertDetailViewProps) {
       setShowStatusModal(false);
       setStatusReason('');
       setNewStatus('');
+      setShowStatusConfirm(false);
       loadAlert();
     }
   };
@@ -154,6 +164,7 @@ export function AlertDetailView({ alertId, onNavigate }: AlertDetailViewProps) {
 
   return (
     <div className="space-y-5">
+      <Breadcrumbs items={[{ label: 'Alertas', view: 'alerts' }, { label: alert.alert_code }]} onNavigate={onNavigate} />
       <div className="flex items-center gap-3">
         <button onClick={() => onNavigate('alerts')} className="btn-secondary">
           <ArrowLeft className="w-4 h-4" /> Volver
@@ -484,6 +495,17 @@ export function AlertDetailView({ alertId, onNavigate }: AlertDetailViewProps) {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={showStatusConfirm}
+        title="Confirmar cambio de estado"
+        message={`Se cambiará el estado de "${ALERT_STATUS_LABELS[alert.status]}" a "${ALERT_STATUS_LABELS[newStatus]}". Esta acción quedará registrada en la bitácora.`}
+        confirmLabel="Sí, cambiar estado"
+        cancelLabel="No, cancelar"
+        variant={newStatus === 'discarded' || newStatus === 'closed' ? 'danger' : 'warning'}
+        onConfirm={executeStatusChange}
+        onCancel={() => setShowStatusConfirm(false)}
+      />
     </div>
   );
 }

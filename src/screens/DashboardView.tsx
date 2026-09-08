@@ -14,6 +14,7 @@ import {
   type ProcurementProcess,
 } from '@/types';
 import type { ViewKey } from '@/components/AppShell';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { HelpTooltip, InfoNote } from '@/components/HelpUI';
 
 // ---- Constants ----
@@ -446,6 +447,7 @@ export function DashboardView({ onNavigate }: { onNavigate: (view: ViewKey, para
 
   return (
     <div className="space-y-6">
+      <Breadcrumbs items={[{ label: 'Tablero' }]} onNavigate={onNavigate} />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

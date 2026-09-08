@@ -13,6 +13,7 @@ import {
   type Alert, type IndicatorDefinition,
 } from '@/types';
 import type { ViewKey } from '@/components/AppShell';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { HelpTooltip, InfoNote, PageHeader } from '@/components/HelpUI';
 
 interface AlertsViewProps {
@@ -118,6 +119,7 @@ export function AlertsView({ onNavigate }: AlertsViewProps) {
 
   return (
     <div className="space-y-5">
+      <Breadcrumbs items={[{ label: 'Alertas' }]} onNavigate={onNavigate} />
       {/* Header */}
       <div>
         <div className="flex items-center gap-1.5">

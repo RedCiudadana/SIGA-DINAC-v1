@@ -8,6 +8,7 @@ import * as XLSX from 'xlsx';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import type { ViewKey } from '@/components/AppShell';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { HelpTooltip, InfoNote } from '@/components/HelpUI';
 import { INDICATOR_SHORT } from '@/types';
 
@@ -698,6 +699,7 @@ export function UploadView({ onNavigate }: { onNavigate: (view: ViewKey) => void
 
   return (
     <div className="space-y-5">
+      <Breadcrumbs items={[{ label: 'Carga de datos' }]} onNavigate={onNavigate} />
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Carga de datos</h1>
         <p className="text-sm text-slate-500 mt-1">Asistente paso a paso para cargar y procesar datos de contratación pública.</p>

@@ -7,6 +7,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { HelpTooltip, InfoNote } from '@/components/HelpUI';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
 import {
   INDICATOR_LABELS, INDICATOR_SHORT, ALERT_STATUS_LABELS,
   PRIORITY_LABELS, type Alert, type ProcurementProcess,
@@ -742,6 +743,7 @@ export function ReportsView() {
 
   return (
     <div className="space-y-5">
+      <Breadcrumbs items={[{ label: 'Reportes' }]} onNavigate={() => {}} />
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>

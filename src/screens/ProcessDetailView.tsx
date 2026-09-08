@@ -14,6 +14,7 @@ import {
   type Alert, type ProcurementProcess,
 } from '@/types';
 import type { ViewKey } from '@/components/AppShell';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
 
 interface ProcessDetailViewProps {
   processId: string;
@@ -163,6 +164,7 @@ export function ProcessDetailView({ processId, onNavigate }: ProcessDetailViewPr
 
   return (
     <div className="space-y-5">
+      <Breadcrumbs items={[{ label: 'Tablero', view: 'dashboard' }, { label: process.process_id }]} onNavigate={onNavigate} />
       {/* Header */}
       <div className="flex items-center gap-3">
         <button onClick={() => onNavigate('dashboard')} className="btn-secondary">

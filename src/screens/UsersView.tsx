@@ -10,6 +10,7 @@ import {
   type UserProfile, type Role,
 } from '@/types';
 import { HelpTooltip, InfoNote } from '@/components/HelpUI';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 export function UsersView() {
   const { profile, logAction } = useAuth();
@@ -22,6 +23,7 @@ export function UsersView() {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
+  const [suspendTarget, setSuspendTarget] = useState<UserProfile | null>(null);
 
   const [inviteForm, setInviteForm] = useState({
     email: '', full_name: '', position: '', unit: '', role_id: '',
@@ -114,6 +116,7 @@ export function UsersView() {
       `${newStatus === 'active' ? 'Activado' : 'Suspendido'}: ${user.email}`,
       user.id
     );
+    setSuspendTarget(null);
     loadUsers();
   };
 
@@ -266,7 +269,7 @@ export function UsersView() {
                           <Shield className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleToggleStatus(user)}
+                          onClick={() => setSuspendTarget(user)}
                           className={`p-1.5 rounded-lg hover:bg-slate-100 ${
                             user.status === 'active' ? 'text-slate-500 hover:text-orange-600' : 'text-slate-500 hover:text-green-600'
                           }`}
@@ -448,6 +451,20 @@ export function UsersView() {
           </div>
         </div>
       )}
+      <ConfirmDialog
+        open={suspendTarget !== null}
+        title={suspendTarget?.status === 'active' ? 'Suspender usuario' : 'Activar usuario'}
+        message={
+          suspendTarget?.status === 'active'
+            ? `¿Seguro que desea suspender a ${suspendTarget?.full_name}? Este usuario no podrá iniciar sesión hasta que se reactive.`
+            : `¿Seguro que desea reactivar a ${suspendTarget?.full_name}? Este usuario podrá iniciar sesión nuevamente.`
+        }
+        confirmLabel={suspendTarget?.status === 'active' ? 'Suspender' : 'Activar'}
+        cancelLabel="Cancelar"
+        variant={suspendTarget?.status === 'active' ? 'danger' : 'info'}
+        onConfirm={() => suspendTarget && handleToggleStatus(suspendTarget)}
+        onCancel={() => setSuspendTarget(null)}
+      />
     </div>
   );
 }

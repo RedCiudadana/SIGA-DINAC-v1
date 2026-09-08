@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import type { Role, Permission } from '@/types';
 import { HelpTooltip, InfoNote } from '@/components/HelpUI';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 export function RolesView() {
   const { logAction } = useAuth();
@@ -11,6 +12,7 @@ export function RolesView() {
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [matrix, setMatrix] = useState<Record<string, Set<string>>>({});
   const [loading, setLoading] = useState(true);
+  const [pendingRevoke, setPendingRevoke] = useState<{ role: Role; perm: Permission } | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -44,6 +46,18 @@ export function RolesView() {
   }, []);
 
   const togglePermission = async (roleId: string, permissionId: string, currentlyHas: boolean) => {
+    if (currentlyHas) {
+      const role = roles.find((r) => r.id === roleId);
+      const perm = permissions.find((p) => p.id === permissionId);
+      if (role && perm) {
+        setPendingRevoke({ role, perm });
+        return;
+      }
+    }
+    await executeToggle(roleId, permissionId, currentlyHas);
+  };
+
+  const executeToggle = async (roleId: string, permissionId: string, currentlyHas: boolean) => {
     if (currentlyHas) {
       await supabase.from('role_permissions').delete()
         .eq('role_id', roleId).eq('permission_id', permissionId);
@@ -143,6 +157,20 @@ export function RolesView() {
       <InfoNote variant="info">
         El sistema funciona con dos roles: Administrador General (control total del sistema) y Fiscalización (consulta y gestión de alertas asignadas). Al crear un usuario, elija el rol según las funciones que desempeñará.
       </InfoNote>
+
+      <ConfirmDialog
+        open={pendingRevoke !== null}
+        title="Revocar permiso"
+        message={`¿Seguro que desea revocar el permiso "${pendingRevoke?.perm.name}" del rol "${pendingRevoke?.role.name}"? Esto afectará a todos los usuarios con ese rol.`}
+        confirmLabel="Revocar"
+        cancelLabel="Cancelar"
+        variant="danger"
+        onConfirm={() => {
+          if (pendingRevoke) executeToggle(pendingRevoke.role.id, pendingRevoke.perm.id, true);
+          setPendingRevoke(null);
+        }}
+        onCancel={() => setPendingRevoke(null)}
+      />
     </div>
   );
 }
