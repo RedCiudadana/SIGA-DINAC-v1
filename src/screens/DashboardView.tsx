@@ -4,6 +4,7 @@ import {
   Download, Search, ArrowUpDown, ChevronRight, BarChart3,
   Factory, Flag, Clock, CheckCircle2, Layers, Filter, X,
   FileSpreadsheet, Upload as UploadIcon, Cpu, FileSearch, ClipboardCheck, Lightbulb,
+  ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
@@ -922,9 +923,7 @@ function HowItWorksSection({ onNavigate, hasPermission }: {
   onNavigate: (view: ViewKey) => void;
   hasPermission: (code: string) => boolean;
 }) {
-  const [dismissed, setDismissed] = useState(false);
-
-  if (dismissed) return null;
+  const [expanded, setExpanded] = useState(false);
 
   const steps = [
     {
@@ -973,19 +972,23 @@ function HowItWorksSection({ onNavigate, hasPermission }: {
 
   return (
     <div className="card overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-blue-50 to-slate-50">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-blue-50 to-slate-50 transition-colors hover:bg-blue-50/80"
+      >
         <div className="flex items-center gap-2">
           <Lightbulb className="w-5 h-5 text-blue-700" />
           <h2 className="text-sm font-semibold text-slate-900">¿Cómo funciona esta herramienta?</h2>
+          {!expanded && (
+            <span className="text-xs text-slate-400 font-normal hidden sm:inline">Haga clic para ver la guía paso a paso</span>
+          )}
         </div>
-        <button
-          onClick={() => setDismissed(true)}
-          className="text-slate-400 hover:text-slate-600 text-xs flex items-center gap-1 transition-colors"
-        >
-          <X className="w-3.5 h-3.5" /> Cerrar guía
-        </button>
-      </div>
+        <ChevronDown
+          className={`w-4 h-4 text-slate-500 transition-transform duration-200 ${expanded ? '' : '-rotate-90'}`}
+        />
+      </button>
 
+      {expanded && (
       <div className="p-5">
         <p className="text-sm text-slate-600 mb-4 leading-relaxed">
           El Sistema de Identificación y Gestión de Alertas (SIGA-DINAC) analiza datos de contratación pública para identificar señales preventivas que requieren revisión técnica. Siga estos pasos para utilizarlo:
@@ -1030,6 +1033,7 @@ function HowItWorksSection({ onNavigate, hasPermission }: {
           </p>
         </div>
       </div>
+      )}
     </div>
   );
 }
