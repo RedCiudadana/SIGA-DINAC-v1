@@ -812,7 +812,7 @@ export function DashboardView({ onNavigate }: { onNavigate: (view: ViewKey, para
                 <tr><td colSpan={9} className="table-cell text-center text-slate-400 py-8">No hay procesos que coincidan.</td></tr>
               ) : (
                 filtered.slice(0, 100).map((proc) => (
-                  <tr key={proc.id} className="hover:bg-slate-50 cursor-pointer" onClick={() => onNavigate('alerts', { processId: proc.process_id })}>
+                  <tr key={proc.id} className="hover:bg-slate-50 cursor-pointer" onClick={() => onNavigate('process-detail', { id: proc.process_id })}>
                     <td className="table-cell font-mono text-xs">{proc.process_id}</td>
                     <td className="table-cell text-xs">{proc.institution_name}</td>
                     <td className="table-cell text-xs max-w-xs truncate" title={proc.procurement_description || ''}>

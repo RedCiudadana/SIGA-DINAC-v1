@@ -5,6 +5,7 @@ import { AppShell, type ViewKey } from '@/components/AppShell';
 import { DashboardView } from '@/screens/DashboardView';
 import { AlertsView } from '@/screens/AlertsView';
 import { AlertDetailView } from '@/screens/AlertDetailView';
+import { ProcessDetailView } from '@/screens/ProcessDetailView';
 import { UploadView } from '@/screens/UploadView';
 import { UploadsView } from '@/screens/UploadsView';
 import { ReportsView } from '@/screens/ReportsView';
@@ -53,6 +54,8 @@ function AppContent() {
         return <AlertsView onNavigate={handleNavigate} />;
       case 'alert-detail':
         return <AlertDetailView alertId={params.id || ''} onNavigate={handleNavigate} />;
+      case 'process-detail':
+        return <ProcessDetailView processId={params.id || ''} onNavigate={handleNavigate} />;
       case 'upload':
         return <UploadView onNavigate={handleNavigate} />;
       case 'uploads':

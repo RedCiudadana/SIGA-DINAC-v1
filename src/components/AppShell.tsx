@@ -10,7 +10,7 @@ import { SessionTimeout } from '@/components/SessionTimeout';
 export type ViewKey =
   | 'dashboard'
   | 'upload' | 'uploads' | 'validation'
-  | 'alerts' | 'alert-detail'
+  | 'alerts' | 'alert-detail' | 'process-detail'
   | 'reports' | 'config'
   | 'docs' | 'tutorials' | 'profile';
 
