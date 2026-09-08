@@ -1,8 +1,10 @@
 import { BookOpen, AlertTriangle, Settings, Shield, Database, FileText } from 'lucide-react';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
 
 export function DocsView() {
   return (
     <div className="space-y-5 max-w-4xl">
+      <Breadcrumbs items={[{ label: 'Documentación' }]} onNavigate={() => {}} />
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Documentación metodológica</h1>
         <p className="text-sm text-slate-500 mt-1">Guía técnica de los indicadores y reglas de análisis del sistema.</p>

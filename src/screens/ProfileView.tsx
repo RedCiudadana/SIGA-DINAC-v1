@@ -3,6 +3,7 @@ import { User, Lock, Save, Key } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { ROLE_LABELS } from '@/types';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
 
 export function ProfileView() {
   const { profile, refreshProfile, logAction } = useAuth();
@@ -74,6 +75,7 @@ export function ProfileView() {
 
   return (
     <div className="space-y-5 max-w-3xl">
+      <Breadcrumbs items={[{ label: 'Mi perfil' }]} onNavigate={() => {}} />
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Mi perfil</h1>
         <p className="text-sm text-slate-500 mt-1">Información personal y configuración de cuenta.</p>

@@ -5,6 +5,7 @@ import {
   CheckCircle2, ArrowRight, Layers, Eye, Clock, GitBranch, Users,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
 
 type SectionKey = 'platform' | 'concepts' | 'priority';
 
@@ -193,7 +194,7 @@ export function TutorialsView() {
 
   return (
     <div className="space-y-5 max-w-4xl">
-      {/* Header */}
+      <Breadcrumbs items={[{ label: 'Tutoriales' }]} onNavigate={() => {}} />
       <div className="flex items-center gap-2">
         <GraduationCap className="w-6 h-6 text-blue-700" />
         <div>

@@ -7,7 +7,6 @@ import { ROLE_LABELS } from '@/types';
 import { AppNav } from '@/components/AppNav';
 import { SessionTimeout } from '@/components/SessionTimeout';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { Breadcrumbs } from '@/components/Breadcrumbs';
 
 export type ViewKey =
   | 'dashboard'
@@ -49,23 +48,6 @@ export function AppShell({ currentView, onNavigate, children }: AppShellProps) {
   };
 
   const roleName = profile?.role ? ROLE_LABELS[profile.role.code] || profile.role.name : 'Sin rol';
-
-  const VIEW_LABELS: Record<string, string> = {
-    dashboard: 'Tablero',
-    upload: 'Carga de datos',
-    uploads: 'Historial de cargas',
-    validation: 'Validación',
-    alerts: 'Alertas',
-    'alert-detail': 'Detalle de alerta',
-    'process-detail': 'Ficha del proceso',
-    reports: 'Reportes',
-    config: 'Configuración',
-    docs: 'Documentación',
-    tutorials: 'Tutoriales',
-    profile: 'Mi perfil',
-  };
-
-  const breadcrumbItems = [{ label: VIEW_LABELS[currentView] || currentView }];
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -194,7 +176,6 @@ export function AppShell({ currentView, onNavigate, children }: AppShellProps) {
               </p>
             </div>
           )}
-          <Breadcrumbs items={breadcrumbItems} onNavigate={onNavigate} />
           {children}
         </main>
       </div>

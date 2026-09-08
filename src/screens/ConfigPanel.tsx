@@ -13,6 +13,7 @@ import { SystemResetView } from '@/screens/SystemResetView';
 import { IndicatorsView } from '@/screens/IndicatorsView';
 import { CatalogsView } from '@/screens/CatalogsView';
 import { HelpTooltip } from '@/components/HelpUI';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
 
 export type ConfigTab = 'indicators' | 'catalogs' | 'users' | 'roles' | 'security' | 'audit' | 'system-reset';
 
@@ -76,6 +77,7 @@ export function ConfigPanel({ initialTab, onNavigate }: ConfigPanelProps) {
 
   return (
     <div className="space-y-5">
+      <Breadcrumbs items={[{ label: 'Configuración' }]} onNavigate={onNavigate} />
       {/* Header */}
       <div className="flex items-center gap-2">
         <Settings className="w-6 h-6 text-slate-700" />
