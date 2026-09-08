@@ -30,6 +30,13 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    if (password.length < 12) {
+      return new Response(
+        JSON.stringify({ error: "La contraseña debe tener al menos 12 caracteres" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
