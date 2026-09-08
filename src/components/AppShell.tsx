@@ -88,10 +88,6 @@ export function AppShell({ currentView, onNavigate, children }: AppShellProps) {
               <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
               Uso interno
             </span>
-            <span className="hidden md:inline-flex items-center gap-1.5 text-xs bg-blue-950/50 px-2.5 py-1 rounded-full border border-blue-800">
-              Entorno de demostración
-            </span>
-
             <div className="relative">
               <button
                 onClick={() => setShowUserMenu(!showUserMenu)}
