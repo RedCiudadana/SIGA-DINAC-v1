@@ -1,0 +1,5 @@
+User-agent: *
+Disallow: /
+
+# SIGA-DINAC es un sistema interno de acceso restringido.
+# No hay contenido público que indexar.
