@@ -71,7 +71,7 @@ export function AppShell({ currentView, onNavigate, children }: AppShellProps) {
             </button>
             <div className="flex items-center gap-2.5">
               <img
-                src="https://dinac.gob.sv/wp-content/uploads/2026/01/LOGO-DINAC2.png"
+                src="/dinac-logo.svg"
                 alt="DINAC"
                 className="h-8 w-auto object-contain"
                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}

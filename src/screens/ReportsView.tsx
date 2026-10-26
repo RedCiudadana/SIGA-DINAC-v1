@@ -16,7 +16,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 
-const LOGO_URL = 'https://dinac.gob.sv/wp-content/uploads/2026/01/LOGO-DINAC2.png';
+const LOGO_URL = '/dinac-logo.png';
 
 type ReportId = 'executive-summary' | 'alerts-by-indicator' | 'alerts-by-institution' | 'alerts-detail' | 'processes-summary';
 

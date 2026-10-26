@@ -1,4 +1,4 @@
-const LOGO_URL = 'https://dinac.gob.sv/wp-content/uploads/2026/01/LOGO-DINAC2.png';
+const LOGO_URL = '/dinac-logo.png';
 
 export function LoadingScreen() {
   return (

@@ -868,12 +868,19 @@ export function DashboardView({ onNavigate }: { onNavigate: (view: ViewKey, para
 // ---- Institutional footer ----
 function InstitutionalFooter() {
   return (
-    <div className="card overflow-hidden">
-      <img
-        src="/Captura_de_pantalla_2026-10-26_a_la(s)_12.55.07_p._m..png"
-        alt="Logos de la Unión Europea, cooperación alemana y GIZ"
-        className="block w-full h-auto object-contain"
-      />
+    <div className="card px-4 py-5 sm:px-6">
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-5 sm:gap-8">
+        <img
+          src="/Captura_de_pantalla_2026-10-26_a_la(s)_12.55.07_p._m..png"
+          alt="Logos de la Unión Europea, cooperación alemana y GIZ"
+          className="block w-full sm:flex-1 h-auto max-h-28 object-contain"
+        />
+        <img
+          src="/dinac-logo.svg"
+          alt="DINAC"
+          className="h-14 sm:h-16 w-auto max-w-[190px] object-contain"
+        />
+      </div>
     </div>
   );
 }
