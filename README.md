@@ -2,42 +2,65 @@
 
 ## Sistema de Identificación y Gestión de Alertas
 
-Plataforma de transparencia para la **Dirección Nacional de Compras Públicas (DINAC)**, desarrollada por **Red Ciudadana**. El sistema analiza automáticamente procesos de contratación pública mediante banderas rojas (red flags) para detectar riesgos e irregularidades potenciales.
+Plataforma de transparencia para la **Dirección Nacional de Compras Públicas (DINAC)**, desarrollada por **Red Ciudadana**. El sistema analiza automáticamente procesos de contratación pública mediante banderas rojas (red flags) para detectar riesgos e irregularidades potenciales, y permite publicar estadísticas agregadas en tableros públicos accesibles sin inicio de sesión.
 
 ---
 
 ## Tabla de contenidos
 
 1. [Qué hace el sistema](#qué-hace-el-sistema)
-2. [Tecnologías utilizadas](#tecnologías-utilizadas)
-3. [Requisitos previos](#requisitos-previos)
-4. [Instalación paso a paso](#instalación-paso-a-paso)
-5. [Estructura del proyecto](#estructura-del-proyecto)
-6. [Base de datos y migraciones](#base-de-datos-y-migraciones)
-7. [Funciones de servidor (Edge Functions)](#funciones-de-servidor-edge-functions)
-8. [Pantallas y funcionalidades](#pantallas-y-funcionalidades)
-9. [Roles y permisos](#roles-y-permisos)
-10. [Banderas rojas (indicadores)](#banderas-rojas-indicadores)
-11. [Carga de datos](#carga-de-datos)
-12. [Reportes](#reportes)
-13. [Seguridad](#seguridad)
-14. [Credenciales de demostración](#credenciales-de-demostración)
-15. [Scripts disponibles](#scripts-disponibles)
-16. [Despliegue](#despliegue)
+2. [Novedades de esta versión](#novedades-de-esta-versión)
+3. [Tecnologías utilizadas](#tecnologías-utilizadas)
+4. [Requisitos previos](#requisitos-previos)
+5. [Instalación paso a paso](#instalación-paso-a-paso)
+6. [Estructura del proyecto](#estructura-del-proyecto)
+7. [Base de datos y migraciones](#base-de-datos-y-migraciones)
+8. [Funciones de servidor (Edge Functions)](#funciones-de-servidor-edge-functions)
+9. [Pantallas y funcionalidades](#pantallas-y-funcionalidades)
+10. [Módulo de Tableros Públicos](#módulo-de-tableros-públicos)
+11. [Roles y permisos](#roles-y-permisos)
+12. [Banderas rojas (indicadores)](#banderas-rojas-indicadores)
+13. [Carga de datos](#carga-de-datos)
+14. [Reportes](#reportes)
+15. [Seguridad](#seguridad)
+16. [Credenciales de demostración](#credenciales-de-demostración)
+17. [Scripts disponibles](#scripts-disponibles)
+18. [Despliegue](#despliegue)
 
 ---
 
 ## Qué hace el sistema
 
-SIGA-DINAC es una aplicación web interna que permite a la DINAC:
+SIGA-DINAC es una aplicación web institucional que permite a la DINAC:
 
 - **Cargar datos** de procesos de contratación pública desde archivos CSV, Excel (.xlsx, .xls) o JSON.
 - **Detectar automáticamente** riesgos mediante 5 banderas rojas (oferta única, plazo corto, contrato no publicado, métodos no competitivos, concentración comprador-proveedor).
 - **Gestionar alertas** generadas por el sistema: asignarlas, revisarlas, comentarlas, adjuntar documentos y cambiar su estado.
 - **Generar reportes** en PDF y Excel con filtros por bandera, estado, prioridad y fechas.
 - **Auditar** todas las acciones del sistema en una bitácora inmutable.
+- **Publicar tableros estadísticos públicos** con información agregada aprobada institucionalmente, accesibles sin inicio de sesión y embebibles mediante código iframe.
 
 Las banderas rojas son **indicadores preventivos**. Su activación no constituye por sí sola evidencia de irregularidad, fraude o corrupción. Requieren revisión técnica y documental.
+
+---
+
+## Novedades de esta versión
+
+### Módulo de Tableros Públicos
+- Nueva sección **Publicación → Tableros públicos** en el menú lateral.
+- Asistente de 5 pasos para crear tableros estadísticos con componentes autorizados.
+- Flujo institucional de aprobación: borrador → pendiente de aprobación → aprobado → publicado → suspendido.
+- Generación automática de **enlace público** y **código iframe embebible** (estilo YouTube).
+- Rutas públicas sin autenticación: `/publico/tableros/:publicId` y `/publico/tableros/:publicId/embed`.
+- Arquitectura basada en **snapshots independientes**: el sitio público consulta únicamente versiones aprobadas, nunca los datos privados.
+- Separación estricta entre datos internos y estadísticas autorizadas para publicación.
+
+### Footer institucional
+- Se agregó un **footer institucional** con los logos de cooperación al final de todas las páginas internas del sistema.
+
+### Migraciones de base de datos
+- `20261026000000_public_boards.sql` — Tablas `public_boards`, `public_board_versions`, `public_board_publications` con RLS y funciones RPC de servidor.
+- `20261026000001_public_boards_create_rpc.sql` — Función `create_public_board` para creación autorizada de tableros.
 
 ---
 
@@ -136,20 +159,25 @@ Los archivos compilados se generan en la carpeta `dist/`.
 ```
 proyecto/
 ├── src/
-│   ├── components/          # Componentes reutilizables
-│   │   ├── AppNav.tsx       # Menú de navegación lateral
-│   │   ├── AppShell.tsx     # Estructura principal (header + sidebar + contenido)
-│   │   ├── HelpUI.tsx       # Tooltips y notas de ayuda
-│   │   └── SessionTimeout.tsx # Cierre de sesión por inactividad
+│   ├── components/               # Componentes reutilizables
+│   │   ├── AppNav.tsx            # Menú de navegación lateral
+│   │   ├── AppShell.tsx          # Estructura principal (header + sidebar + contenido + footer)
+│   │   ├── Breadcrumbs.tsx       # Migas de pan
+│   │   ├── ConfirmDialog.tsx     # Diálogo de confirmación
+│   │   ├── HelpUI.tsx            # Tooltips y notas de ayuda
+│   │   ├── InstitutionalFooter.tsx # Footer institucional con logos de cooperación
+│   │   ├── LoadingScreen.tsx     # Pantalla de carga
+│   │   └── SessionTimeout.tsx    # Cierre de sesión por inactividad
 │   ├── context/
-│   │   └── AuthContext.tsx  # Autenticación, sesión, permisos
+│   │   └── AuthContext.tsx       # Autenticación, sesión, permisos
 │   ├── lib/
-│   │   └── supabase.ts      # Cliente de Supabase
-│   ├── screens/             # Pantallas del sistema
+│   │   └── supabase.ts           # Cliente de Supabase
+│   ├── screens/                  # Pantallas del sistema
 │   │   ├── LoginScreen.tsx
 │   │   ├── DashboardView.tsx
 │   │   ├── AlertsView.tsx
 │   │   ├── AlertDetailView.tsx
+│   │   ├── ProcessDetailView.tsx
 │   │   ├── UploadView.tsx
 │   │   ├── UploadsView.tsx
 │   │   ├── ReportsView.tsx
@@ -163,19 +191,22 @@ proyecto/
 │   │   ├── DocsView.tsx
 │   │   ├── TutorialsView.tsx
 │   │   ├── ProfileView.tsx
-│   │   └── ConfigPanel.tsx
+│   │   ├── ConfigPanel.tsx
+│   │   └── PublicBoardsView.tsx  # Módulo de tableros públicos
 │   ├── types/
-│   │   └── index.ts         # Tipos de TypeScript y constantes
-│   ├── App.tsx              # Componente raíz
-│   ├── main.tsx             # Punto de entrada
-│   └── index.css            # Estilos globales (Tailwind)
+│   │   └── index.ts              # Tipos de TypeScript y constantes
+│   ├── App.tsx                   # Componente raíz (routing público + interno)
+│   ├── main.tsx                  # Punto de entrada
+│   └── index.css                 # Estilos globales (Tailwind)
 ├── supabase/
-│   ├── config.toml          # Configuración de Edge Functions
-│   ├── migrations/          # Migraciones de base de datos
-│   └── functions/           # Edge Functions
+│   ├── config.toml               # Configuración de Edge Functions
+│   ├── migrations/               # Migraciones de base de datos
+│   └── functions/                # Edge Functions
 ├── package.json
 ├── vite.config.ts
 ├── tailwind.config.js
+├── README.md
+├── GUIA-USUARIO.md               # Guía de usuario del sistema
 └── .env
 ```
 
@@ -195,6 +226,8 @@ El sistema usa PostgreSQL (a través de Supabase) con **Row Level Security (RLS)
 | 06 | `06_simplify_roles_to_two.sql` | Simplificación a dos roles: Administrador General y Fiscalización |
 | 07 | `07_red_flags_v2.sql` | Actualización de banderas rojas a versión 2 |
 | 08 | `08_super_admin_and_reset.sql` | Rol de Super Administrador y funcionalidad de reseteo de base de datos |
+| 09 | `20261026000000_public_boards.sql` | Tablas de tableros públicos, versiones, publicaciones, RLS y funciones RPC de servidor |
+| 10 | `20261026000001_public_boards_create_rpc.sql` | Función `create_public_board` para creación autorizada de tableros |
 
 ### Tablas principales
 
@@ -209,6 +242,9 @@ El sistema usa PostgreSQL (a través de Supabase) con **Row Level Security (RLS)
 - **alerts** — Alertas generadas por el análisis automático
 - **alert_comments / alert_documents / alert_status_history** — Gestión de alertas
 - **security_settings** — Configuración global de seguridad
+- **public_boards** — Configuración de tableros públicos (privada)
+- **public_board_versions** — Versiones de tableros con snapshots estadísticos (privada)
+- **public_board_publications** — Copias públicas independientes de versiones aprobadas (acceso anónimo limitado)
 
 ---
 
@@ -222,62 +258,118 @@ El sistema incluye 3 Edge Functions que se ejecutan en el servidor de Supabase (
 | **process-rules** | Ejecuta las reglas de análisis sobre los procesos cargados y genera las alertas correspondientes |
 | **reset-database** | Elimina todos los procesos, alertas y cargas (conserva usuarios, roles, permisos y bitácora) |
 
-Estas funciones tienen `verify_jwt = false` en `supabase/config.toml` para permitir su invocación.
+### Funciones RPC de base de datos (Tableros públicos)
+
+Adicionalmente, el módulo de Tableros Públicos utiliza funciones PostgreSQL `SECURITY DEFINER` que se ejecutan en el servidor con verificación de permisos:
+
+| Función | Qué hace |
+|---|---|
+| **create_public_board** | Crea la configuración privada inicial de un tablero (solo usuarios con permiso `manage_public_boards`) |
+| **prepare_public_board_version** | Calcula los agregados estadísticos permitidos y crea una versión en borrador |
+| **submit_public_board_for_approval** | Envía un tablero a revisión institucional |
+| **review_public_board_version** | Aprueba o devuelve una versión a borrador con observaciones |
+| **publish_public_board** | Crea una copia pública independiente de la versión aprobada y genera el enlace público |
+| **suspend_public_board** | Retira la publicación pública sin borrar el historial |
 
 ---
 
 ## Pantallas y funcionalidades
 
 ### Tablero principal (Dashboard)
-Vista general con métricas clave: total de procesos, alertas por bandera, distribución por prioridad y estado, montos adjudicados, y gráficos interactivos.
+Vista general con métricas clave: total de procesos, alertas por bandera, distribución por prioridad y estado, montos adjudicados, y gráficos interactivos. Incluye filtros globales (periodo, modalidad, institución), una guía colapsable de uso y una tabla de procesos con ordenamiento.
 
 ### Carga de datos
-Permite cargar archivos **CSV, Excel (.xlsx, .xls) y JSON** con procesos de contratación. El sistema:
-- Detecta automáticamente la versión de plantilla (V1/V2)
-- Valida columnas obligatorias, tipos de datos y fechas
-- Muestra una previsualización antes de confirmar
-- Procesa los datos y genera alertas automáticamente
+Asistente de 7 pasos que permite cargar archivos **CSV, Excel (.xlsx, .xls) y JSON**. El sistema detecta automáticamente la versión de plantilla, valida columnas, muestra previsualización, procesa los datos y genera alertas automáticamente.
 
 ### Historial de cargas
 Registro de todas las cargas realizadas con estado, cantidad de registros válidos/rechazados, alertas generadas y fecha.
 
 ### Alertas de riesgo
-Listado de todas las alertas con filtros por bandera, estado, prioridad y fecha. Cada alerta se puede abrir para ver el detalle completo.
+Listado de todas las alertas con filtros por bandera, estado, prioridad y búsqueda de texto. Cada alerta se puede expandir para ver el detalle del análisis o abrir el detalle completo.
 
 ### Detalle de alerta
-Vista individual de cada alerta con:
-- Información del proceso asociado
-- Detalle del cálculo y umbral aplicado
-- Línea de tiempo de cambios de estado
-- Comentarios internos
-- Documentos adjuntos
-- Asignación y cambio de estado
+Vista individual con explicabilidad del cálculo, pestañas de detalle, comentarios internos e historial de cambios de estado. Permite editar conclusiones, cambiar estado y publicar comentarios.
+
+### Detalle de proceso
+Información completa de un proceso de contratación con sus datos generales, resumen de riesgo y las alertas detectadas.
 
 ### Reportes
-Generación de reportes internos en **PDF y Excel**. Incluye 5 tipos de reporte:
-1. **Resumen ejecutivo** — métricas agregadas con KPIs
-2. **Alertas por indicador** — agrupadas por bandera roja con desglose
-3. **Alertas por institución** — distribución por institución compradora
-4. **Detalle completo de alertas** — listado tabular completo
-5. **Resumen de procesos** — consolidado de procesos de contratación
-
-Cada reporte se puede **previsualizar** antes de descargar y aplicar **filtros** por bandera, estado, prioridad y rango de fechas. Los reportes en PDF incluyen el logo de Red Ciudadana, y todas las descargas quedan registradas en la bitácora.
+Generación de reportes internos en **PDF y Excel**. Incluye 5 tipos de reporte con previsualización, filtros y registro de descargas en bitácora.
 
 ### Configuración
-Panel de administración con 7 secciones:
-- **Indicadores** — Configuración de banderas rojas y sus umbrales
-- **Catálogos** — Instituciones, proveedores, métodos de contratación
-- **Usuarios** — Creación y gestión de cuentas de usuario
-- **Roles y permisos** — Matriz de permisos por rol
-- **Seguridad** — Políticas de contraseñas, sesiones, bloqueos
-- **Bitácora** — Auditoría completa del sistema
-- **Reseteo de datos** — Reinicio de la base de datos (conserva usuarios y configuración)
+Panel de administración con 7 secciones: Indicadores, Catálogos, Usuarios, Roles y permisos, Seguridad, Bitácora y Reseteo de datos.
 
 ### Documentación y Tutoriales
-Secciones de ayuda con documentación metodológica sobre las banderas rojas y tutoriales de uso del sistema.
+Secciones de ayuda con documentación metodológica sobre las banderas rojas y tutoriales interactivos de uso del sistema.
 
 ### Perfil
-Información del usuario, cambio de contraseña y datos personales.
+Información del usuario, cambio de contraseña y edición de datos personales.
+
+---
+
+## Módulo de Tableros Públicos
+
+El módulo de Tableros Públicos permite a usuarios autorizados de DINAC crear, revisar, publicar y compartir estadísticas institucionales agregadas en un formato accesible sin inicio de sesión.
+
+### Arquitectura de seguridad
+
+El requisito técnico más importante de este módulo es la **separación estricta entre datos internos y estadísticas públicas**:
+
+1. El administrador selecciona la plantilla y fuente autorizadas.
+2. El **servidor** calcula únicamente los agregados permitidos.
+3. Se generan verificaciones de calidad y confidencialidad.
+4. Un usuario autorizado revisa y aprueba el contenido exacto.
+5. El sistema crea una **versión pública independiente** (snapshot).
+6. El sitio público consulta **únicamente** esa versión aprobada.
+7. Una nueva carga interna no modifica automáticamente el tablero público.
+8. Cada actualización requiere nueva versión y aprobación.
+
+Las rutas públicas no utilizan credenciales administrativas ni exponen acceso a tablas privadas. El acceso anónimo está limitado por RLS a las publicaciones con estado `published`.
+
+### Componentes autorizados para publicación
+
+- Número total de procesos incluidos en el conjunto de datos.
+- Número de instituciones representadas.
+- Periodo cubierto.
+- Porcentaje de registros completos.
+- Gráfico de procesos registrados por mes.
+- Distribución general por estado del proceso (solo cuando se autorice).
+
+**No se publican:** banderas rojas, alertas individuales, puntajes de riesgo, instituciones investigadas, proveedores individuales, datos de contratos específicos, documentos internos, resultados de investigaciones, ni reglas, parámetros o umbrales reservados.
+
+### Rutas públicas
+
+| Ruta | Descripción |
+|---|---|
+| `/publico/tableros/:publicId` | Vista pública completa del tablero |
+| `/publico/tableros/:publicId/embed` | Vista para incrustar en sitios externos (sin menú ni encabezado) |
+
+### Flujo de aprobación institucional
+
+```
+Borrador → Pendiente de aprobación → Aprobado → Publicado → Suspendido
+                ↑                         ↓
+                └── Rechazado (vuelve a borrador) ──┘
+```
+
+- Los usuarios con permiso `manage_public_boards` pueden crear y preparar contenido, pero no publicarlo directamente.
+- Un usuario con permiso `approve_public_boards` debe revisar y aprobar antes de la publicación.
+- Cada acción registra usuario, fecha, versión y observaciones en la bitácora.
+
+### Código iframe embebible
+
+Cada publicación aprobada genera automáticamente un código iframe similar al de YouTube:
+
+```html
+<iframe
+  src="https://DOMINIO/publico/tableros/ID/embed"
+  title="Estadísticas generales de compras públicas"
+  width="100%"
+  height="650"
+  loading="lazy"
+  style="border:0;border-radius:12px;"
+></iframe>
+```
 
 ---
 
@@ -287,27 +379,20 @@ El sistema utiliza control de acceso basado en roles (RBAC) con los siguientes r
 
 | Rol | Código | Acceso |
 |---|---|---|
-| **Super Administrador** | `super_admin` | Acceso completo a todas las funcionalidades |
-| **Administrador General** | `admin_general` | Administración del sistema, usuarios, configuración, reportes |
-| **Fiscalización** | `fiscalization` | Acceso limitado: tablero, alertas y reportes |
+| **Super Administrador** | `super_admin` | Acceso completo a todas las funcionalidades, incluyendo reseteo de base de datos |
+| **Administrador General** | `admin_general` | Administración del sistema, usuarios, configuración, reportes y tableros públicos |
+| **Fiscalización** | `fiscalization` | Acceso limitado: tablero, alertas, reportes y preparación de tableros públicos |
 
-Los permisos se asignan por rol y controlan el acceso a cada pantalla y acción. Algunos permisos clave:
+Permisos clave del módulo de Tableros Públicos:
 
-- `view_dashboard` — Ver el tablero principal
-- `upload_data` — Cargar datos
-- `view_alerts` — Ver alertas
-- `export_reports` — Descargar reportes
-- `manage_users` — Gestionar usuarios
-- `configure_indicators` — Configurar banderas rojas
-- `configure_security` — Configurar políticas de seguridad
-- `view_audit_log` — Ver la bitácora
-- `reset_database` — Resetear la base de datos
+- `manage_public_boards` — Crear y preparar versiones de estadísticas para publicación
+- `approve_public_boards` — Revisar, aprobar, publicar y suspender tableros públicos
 
 ---
 
 ## Banderas rojas (indicadores)
 
-El sistema analiza los procesos de contratación mediante 5 banderas roja:
+El sistema analiza los procesos de contratación mediante 5 banderas rojas:
 
 | Código | Nombre | Nivel | Qué detecta |
 |---|---|---|---|
@@ -331,7 +416,7 @@ Cada bandera tiene **parámetros configurables** (umbrales) que determinan cuán
 
 ### Columnas requeridas
 
-El sistema detecta automáticamente la versión de plantilla. Las columnas principales incluyen:
+El sistema detecta automáticamente la versión de plantilla (V1/V2). Las columnas principales incluyen:
 
 - `process_id` — Identificador del proceso
 - `institution_code` — Código de la institución compradora
@@ -358,7 +443,7 @@ El sistema detecta automáticamente la versión de plantilla. Las columnas princ
 
 ### Formatos de descarga
 
-- **PDF** — Disponible para los 5 tipos de reporte. Incluye logo de Red Ciudadana, encabezado con metadatos, tablas formateadas y pie de página con nota legal.
+- **PDF** — Disponible para los 5 tipos de reporte. Incluye encabezado con metadatos, tablas formateadas y pie de página con nota legal.
 - **Excel** — Disponible para "Detalle completo de alertas" y "Alertas por indicador". Incluye hoja de información con metadatos y hojas de datos con columnas legibles.
 
 ### Filtros disponibles
@@ -371,12 +456,7 @@ Todos los reportes se pueden filtrar por:
 
 ### Registro de descargas
 
-Cada descarga de reporte queda registrada en la bitácora de auditoría con:
-- Usuario que realizó la descarga
-- Fecha y hora
-- Tipo de reporte y formato
-- Identificador único del reporte
-- Filtros aplicados
+Cada descarga de reporte queda registrada en la bitácora de auditoría con usuario, fecha, tipo de reporte, formato y filtros aplicados.
 
 ---
 
@@ -391,6 +471,8 @@ El sistema implementa múltiples capas de seguridad:
 - **Políticas de contraseña** — Longitud mínima, mayúsculas, minúsculas, números y caracteres especiales configurables
 - **Bitácora de auditoría** — Todas las acciones quedan registradas (usuario, fecha, IP, módulo, acción)
 - **Clasificación de uso interno** — Todos los reportes incluyen la marca "Uso interno"
+- **Separación de datos públicos** — Los tableros públicos consultan snapshots aprobados, nunca las tablas privadas
+- **Funciones SECURITY DEFINER** — Las operaciones privilegiadas (crear tableros, aprobar, publicar) se ejecutan en el servidor con verificación de permisos
 
 ---
 
@@ -440,9 +522,23 @@ El proyecto está configurado para desplegarse en **Bolt** o cualquier servicio 
 
 ### Notas
 
-- El archivo `dist/_redirects` redirige todas las rutas a `index.html` para que la aplicación de una sola página (SPA) funcione correctamente.
+- El archivo `dist/_redirects` redirige todas las rutas a `index.html` para que la aplicación de una sola página (SPA) funcione correctamente, incluyendo las rutas públicas `/publico/tableros/:publicId` y `/publico/tableros/:publicId/embed`.
 - Las Edge Functions se despliegan en Supabase y no requieren un servidor aparte.
 - Las credenciales de Supabase se incluyen en el bundle del frontend (es seguro: la clave anon es pública y RLS protege los datos).
+
+### Configuración de iframe para tableros públicos
+
+Para permitir que los tableros públicos se incrusten en sitios externos autorizados por DINAC, configure las cabeceras de seguridad del hosting para permitir `frame-ancestors` desde los dominios autorizados. Por ejemplo, en Netlify (`netlify.toml`):
+
+```toml
+[[headers]]
+  for = "/publico/tableros/*/embed"
+  [headers.values]
+    X-Frame-Options = "ALLOWALL"
+    Content-Security-Policy = "frame-ancestors 'self' https://*.gob.sv https://dinac.gob.sv"
+```
+
+Si la infraestructura no permite configurar estas políticas automáticamente, documente los dominios autorizados en la configuración del servidor web.
 
 ---
 
@@ -457,5 +553,7 @@ El proyecto está configurado para desplegarse en **Bolt** o cualquier servicio 
 ## Aviso legal
 
 Las banderas rojas generadas por este sistema son **indicadores preventivos** que permiten priorizar procesos para análisis y revisión. Su activación no constituye por sí sola evidencia de irregularidad, responsabilidad administrativa, fraude o corrupción. Requieren revisión técnica y documental por parte del personal competente.
+
+Los tableros públicos contienen exclusivamente **estadísticas agregadas** aprobadas institucionalmente. No representan todas las compras nacionales salvo que la cobertura se encuentre acreditada.
 
 Este sistema es de **uso interno**. Todas las acciones realizadas quedan registradas en la bitácora de auditoría.
