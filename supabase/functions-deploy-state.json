@@ -1,0 +1,17 @@
+{
+  "projectId": "70286561",
+  "functions": {
+    "create-user": {
+      "hasChanged": false,
+      "hash": "931c163959ca9be7ac9b40fb748d9d05737b5fbe86306e4ae1c44dc596d93380"
+    },
+    "process-rules": {
+      "hasChanged": false,
+      "hash": "7db8fa826e28f683d3f786893e4013408c02335f7706c17cf1629d16e9de0e25"
+    },
+    "reset-database": {
+      "hasChanged": false,
+      "hash": "f2bbc5d0b58c9af57d5f5e8292032229100045fa4a91cf748c62ea7fd57ffb7d"
+    }
+  }
+}

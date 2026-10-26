@@ -3,6 +3,7 @@ import {
   GraduationCap, BookOpen, AlertTriangle, Settings, Shield, Database,
   FileText, Upload, ChevronRight, ChevronDown, Lightbulb, Info,
   CheckCircle2, ArrowRight, Layers, Eye, Clock, GitBranch, Users,
+  Scale, Building2, CalendarClock, FileEdit, Hourglass,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
@@ -118,6 +119,69 @@ export function TutorialsView() {
       example: 'Una licitación pública publica el pliego el lunes y fija recepción de ofertas para el jueves (3 días). El parámetro para LP es 7 días mínimos. El plazo reducido puede haber impedido que otros oferentes participen.',
       threshold: '7 días (publicación a ofertas), 3 días (ofertas a adjudicación), 10 días (total)',
     },
+    {
+      icon: Scale,
+      name: 'Manipulación de umbrales de contratación',
+      shortName: 'Manipulación de umbrales',
+      what: 'Se activa cuando el monto adjudicado supera el umbral de referencia institucional (240 salarios mínimos mensuales) para la modalidad utilizada, especialmente en licitación pública y licitación corta. Indica que el proceso fue tramitado bajo una modalidad que no corresponde al monto real.',
+      why: 'Elegir una modalidad con umbrales más bajos que el monto real puede ser una forma de eludir los controles y la competencia que exige una modalidad superior. La manipulación de umbrales es una de las prácticas más comunes para evadir transparencia.',
+      example: 'Un proceso de licitación corta adjudica un contrato por el equivalente a 350 salarios mínimos. El umbral de referencia para licitación corta es 240 salarios mínimos. El monto supera el umbral, sugiriendo que debería haberse tramitado como licitación pública.',
+      threshold: '240 salarios mínimos mensuales (umbral de referencia)',
+    },
+    {
+      icon: Building2,
+      name: 'Similitudes comerciales entre oferentes',
+      shortName: 'Similitudes entre oferentes',
+      what: 'Detecta oferentes que comparten teléfono, correo, dirección o representantes legales, lo que puede indicar acuerdos colusorios o empresas fachada. Actualmente pendiente de datos: requiere información individual de todos los oferentes participantes.',
+      why: 'Cuando varios oferentes aparentemente independientes resultan tener los mismos datos de contacto o dirección, la competencia entre ellos puede ser ficticia. Esto es una señal clásica de colusión o de empresas creadas solo para aparentar pluralidad.',
+      example: 'En una licitación participan tres empresas, pero dos comparten el mismo número de teléfono y la misma dirección fiscal. Aunque presentaron ofertas independientes, la similitud sugiere que podrían pertenecer al mismo grupo económico.',
+      threshold: 'Coincidencia en teléfono, correo o dirección entre oferentes (pendiente de datos)',
+    },
+    {
+      icon: Hourglass,
+      name: 'Período de decisión extremadamente corto',
+      shortName: 'Decisión corta',
+      what: 'Se activa cuando el intervalo entre la recepción de ofertas y la adjudicación es igual o inferior a 3 días en modalidades competitivas (LP, LC). Un período tan breve sugiere que la evaluación fue superficial o que la decisión estaba predeterminada.',
+      why: 'La evaluación técnica y económica de ofertas requiere tiempo razonable para revisar documentación, verificar compliance y comparar propuestas. Un plazo extremadamente corto indica que la decisión pudo tomarse sin análisis real, favoreciendo a un oferente preseleccionado.',
+      example: 'Una licitación pública recibe ofertas el lunes y adjudica el miércoles (2 días después). Con 5 oferentes y un monto significativo, dos días no son suficientes para una evaluación adecuada. La celeridad sugiere decisión predeterminada.',
+      threshold: '3 días o menos entre recepción de ofertas y adjudicación (LP, LC)',
+    },
+    {
+      icon: FileEdit,
+      name: 'El contrato tiene modificaciones',
+      shortName: 'Modificaciones contractuales',
+      what: 'Se activa cuando un contrato tiene modificaciones monetarias, especialmente aquellas que superan el 30% del monto adjudicado, que se marcan como prioridad alta. Las modificaciones sustanciales pueden indicar subestimación inicial o cambios que alteran la naturaleza del contrato.',
+      why: 'Las modificaciones contractuales son legítimas cuando responden a necesidades reales, pero cuando son frecuentes o de gran magnitud pueden indicar que el contrato fue adjudicado con un monto artificialmente bajo para ganar la licitación, para luego incrementarlo mediante modificaciones.',
+      example: 'Un contrato adjudicado por $100,000 recibe una modificación de $45,000 (45% del monto original). La modificación supera el umbral del 30% y se marca como prioridad alta. Puede indicar que el monto inicial fue subestimado para ganar la licitación.',
+      threshold: 'Cualquier modificación monetaria; prioridad alta si supera el 30% del adjudicado',
+    },
+    {
+      icon: GitBranch,
+      name: 'Modificaciones reiteradas de la convocatoria',
+      shortName: 'Enmiendas reiteradas',
+      what: 'Detecta convocatorias con múltiples enmiendas que modifican fechas, requisitos o especificaciones técnicas. Las modificaciones reiteradas pueden favorecer a un oferente específico o desalentar la competencia. Actualmente pendiente de datos.',
+      why: 'Cuando una convocatoria se modifica repetidamente, especialmente cerca de la fecha límite, los oferentes pueden confundirse o desistir. Las enmiendas también pueden ajustar requisitos para encajar con un oferente preseleccionado, excluyendo al resto.',
+      example: 'Una licitación pública recibe 4 enmiendas en los últimos 10 días antes del vencimiento. Dos modifican especificaciones técnicas, una cambia la fecha límite y otra ajusta los requisitos de experiencia. Las enmiendas reiteradas podrían estar dirigidas a encajar con un oferente específico.',
+      threshold: 'Múltiples enmiendas a la convocatoria (pendiente de datos)',
+    },
+    {
+      icon: CalendarClock,
+      name: 'Cambios de último momento en las fechas',
+      shortName: 'Cambios tardíos',
+      what: 'Se activa cuando las fechas clave (recepción de ofertas, apertura, adjudicación) se modifican con menos de 48 horas de antelación a su vencimiento original. Los cambios tardíos pueden impedir la participación de oferentes no favorecidos. Actualmente pendiente de datos.',
+      why: 'Cambiar fechas críticas con poca antelación puede impedir que oferentes legítimos participen o ajusten sus propuestas. Si el cambio favorece a un oferente específico que ya tenía preparada su oferta, puede indicar coordinación previa y manipulación del calendario.',
+      example: 'La fecha de recepción de ofertas se adelanta 2 días, anunciándose solo 24 horas antes del nuevo vencimiento. Oferentes que estaban preparando propuestas para la fecha original no tienen tiempo de ajustar sus ofertas, benefiting a quienes ya las tenían listas.',
+      threshold: 'Cambio de fecha con menos de 48 horas de antelación (pendiente de datos)',
+    },
+    {
+      icon: Hourglass,
+      name: 'Tiempo inusualmente corto entre apertura y firma',
+      shortName: 'Apertura a firma corta',
+      what: 'Se activa cuando el intervalo entre la apertura de ofertas y la firma del contrato es inferior a 5 días. Un período tan corto puede indicar que la decisión estaba tomada de antemano o que se omitieron controles previos a la firma. Actualmente pendiente de datos.',
+      why: 'Entre la apertura de ofertas y la firma del contrato deberían mediar verificaciones, aprobaciones y posibles recursos. Un plazo extremadamente corto sugiere que estos pasos se omitieron o que la decisión estaba predeterminada, especialmente si no hubo tiempo para revisar la adjudicación.',
+      example: 'Un proceso se adjudica el lunes y el contrato se firma el miércoles (2 días después). Con un monto significativo, dos días no son suficientes para completar las verificaciones administrativas habituales ni para recibir posibles impugnaciones.',
+      threshold: 'Menos de 5 días entre apertura de ofertas y firma del contrato (pendiente de datos)',
+    },
   ];
 
   const priorityFlags: PriorityFlag[] = [
@@ -150,6 +214,24 @@ export function TutorialsView() {
       priority: 'media',
       reason: 'El uso frecuente de modalidades sin competencia combinado con plazos atípicamente cortos en los pocos procesos competitivos sugiere una cultura institucional de elusión de competencia que merece atención.',
       combinedWith: 'Revisar si las justificaciones de excepción son genéricas o se repiten entre procesos, lo que podría indicar uso rutinario en lugar de excepcional.',
+    },
+    {
+      name: 'Manipulación de umbrales + Único oferente',
+      priority: 'alta',
+      reason: 'Cuando un proceso se tramita bajo una modalidad con umbrales inferiores al monto real y además recibe una sola oferta, la señal es muy fuerte. Sugiere que la modalidad fue elegida para evadir competencia y que el resultado (único oferente) era el objetivo desde el inicio.',
+      combinedWith: 'Verificar si el monto adjudicado supera el umbral de referencia (240 salarios mínimos) para la modalidad utilizada. Si además el plazo fue corto, se acumulan tres banderas que refuerzan la sospecha de manipulación deliberada.',
+    },
+    {
+      name: 'Modificaciones contractuales + Manipulación de umbrales',
+      priority: 'alta',
+      reason: 'Un contrato adjudicado bajo una modalidad con umbrales manipulados que luego recibe modificaciones sustanciales (mayores al 30%) puede indicar que el monto inicial fue artificialmente bajo para encajar en la modalidad y luego se incrementó mediante modificaciones, eludiendo los controles de la modalidad superior.',
+      combinedWith: 'Comparar el monto adjudicado original con el monto final tras modificaciones. Si el monto final supera el umbral de la modalidad superior, la manipulación de umbrales seguida de modificaciones puede haber sido una estrategia deliberada.',
+    },
+    {
+      name: 'Período de decisión corto + Único oferente',
+      priority: 'alta',
+      reason: 'Cuando un proceso competitivo recibe una sola oferta y además la adjudicación se produce en 3 días o menos, la combinación es especialmente significativa. La falta de competencia y la celeridad extrema sugieren que el proceso fue diseñado para favorecer a un oferente específico.',
+      combinedWith: 'Examinar si el plazo de recepción de ofertas también fue corto (bandera R003). Si tres banderas de plazo y competencia coinciden, el proceso debe ser revisado con prioridad máxima.',
     },
   ];
 
@@ -342,7 +424,7 @@ export function TutorialsView() {
               Las banderas rojas son reglas de análisis que evalúan automáticamente los datos de contratación pública. Cada regla busca un patrón específico que, según la experiencia internacional y la doctrina de contratación pública, está asociado a riesgo. Cuando los datos cumplen las condiciones de la regla, el sistema genera una alerta.
             </p>
             <p className="text-sm text-slate-700 leading-relaxed mt-2">
-              El sistema cuenta con cinco banderas rojas principales. Cada una tiene su propia metodología, fórmula y umbrales configurables. A continuación se explica cada una en detalle:
+              El sistema cuenta con nueve banderas rojas priorizadas. Cada una tiene su propia metodología, fórmula y umbrales configurables. Algunas están plenamente calculables con los datos actuales; otras están definidas pero requieren campos adicionales en la plantilla de carga para su cálculo automático. A continuación se explica cada una en detalle:
             </p>
           </div>
 

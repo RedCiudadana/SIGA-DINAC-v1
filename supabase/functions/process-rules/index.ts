@@ -30,6 +30,7 @@ interface ProcRecord {
   contract_document_type: string | null;
   contract_document_url: string | null;
   contract_document_publication_date: string | null;
+  amendment_amount: number | null;
   is_demo: boolean;
   confidentiality_level: string;
 }
@@ -501,6 +502,151 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    // ============================================================
+    // R101 — Manipulación de umbrales de contratación (process level)
+    // ============================================================
+    const indR101 = indicators.find((i) => i.code === "R101");
+    if (indR101) {
+      const salarioMinimo = getParamNumber(indParams["R101"] || [], "salario_minimo_mensual", 0);
+      const umbralSalarios = getParamNumber(indParams["R101"] || [], "umbral_referencia_salarios", 240);
+      const competitivas = getParam(indParams["R101"] || [], "modalidades_competitivas", "LP,LC").split(",").map((m) => m.trim().toUpperCase());
+
+      for (const proc of procs) {
+        if (!proc.awarded_amount || proc.awarded_amount <= 0) continue;
+        const method = (proc.procurement_method || "").toUpperCase();
+        if (!competitivas.includes(method)) continue;
+
+        const umbralMonetario = salarioMinimo > 0 ? salarioMinimo * umbralSalarios : 0;
+        let triggered = false;
+        let thresholdDesc = "";
+
+        if (umbralMonetario > 0 && proc.awarded_amount > umbralMonetario) {
+          triggered = true;
+          thresholdDesc = `awarded_amount (${proc.awarded_amount}) > umbral ${umbralSalarios} salarios mínimos (${umbralMonetario})`;
+        }
+
+        if (triggered) {
+          const alert = {
+            alert_code: "",
+            indicator_id: indR101.id,
+            indicator_code: "R101",
+            upload_id,
+            title: `R101 — Posible manipulación de umbrales en proceso ${proc.process_id}`,
+            description: `El monto adjudicado (${proc.awarded_amount}) excede el umbral de referencia de ${umbralSalarios} salarios mínimos (${umbralMonetario}) para la modalidad ${method}. Se requiere revisión técnica para verificar si la modalidad utilizada corresponde al monto.`,
+            calculation_detail: `Monto adjudicado: ${proc.awarded_amount}, Umbral de referencia: ${umbralSalarios} salarios mínimos = ${umbralMonetario}, Modalidad: ${method}, Salario mínimo configurado: ${salarioMinimo}`,
+            threshold_applied: thresholdDesc,
+            data_used: {
+              process_id: proc.process_id,
+              procurement_method: method,
+              awarded_amount: proc.awarded_amount,
+              estimated_amount: proc.estimated_amount,
+              umbral_salarios: umbralSalarios,
+              salario_minimo: salarioMinimo,
+              umbral_monetario: umbralMonetario,
+            },
+            priority: "medium",
+            status: "new",
+            is_demo: upload.is_demo,
+            created_by: user_id,
+            alert_level: "process",
+            quality_note: "Cálculo parcial: requiere validación del umbral institucional configurado.",
+          };
+          alertsToInsert.push(alert);
+          alertProcessLinks.push({ alert, processIds: [proc.id] });
+        }
+      }
+    }
+
+    // ============================================================
+    // R104 — Período de decisión extremadamente corto (process level)
+    // ============================================================
+    const indR104 = indicators.find((i) => i.code === "R104");
+    if (indR104) {
+      const maxDias = getParamNumber(indParams["R104"] || [], "max_dias_decision", 3);
+      const competitivas = getParam(indParams["R104"] || [], "modalidades_competitivas", "LP,LC").split(",").map((m) => m.trim().toUpperCase());
+
+      for (const proc of procs) {
+        if (!proc.bid_deadline || !proc.award_date) continue;
+        const method = (proc.procurement_method || "").toUpperCase();
+        if (!competitivas.includes(method)) continue;
+
+        const diasDecision = daysBetween(proc.bid_deadline, proc.award_date);
+        if (diasDecision === null) continue;
+
+        if (diasDecision <= maxDias) {
+          const alert = {
+            alert_code: "",
+            indicator_id: indR104.id,
+            indicator_code: "R104",
+            upload_id,
+            title: `R104 — Período de decisión extremadamente corto en proceso ${proc.process_id}`,
+            description: `El intervalo entre la recepción de ofertas y la adjudicación fue de ${diasDecision} días, inferior o igual al umbral demostrativo de ${maxDias} días para la modalidad ${method}. Se requiere revisión técnica.`,
+            calculation_detail: `Días de decisión: ${diasDecision}, Umbral: ${maxDias} días, Modalidad: ${method}, Recepción: ${proc.bid_deadline}, Adjudicación: ${proc.award_date}`,
+            threshold_applied: `award_date - bid_deadline <= ${maxDias} días (modalidad ${method})`,
+            data_used: {
+              process_id: proc.process_id,
+              procurement_method: method,
+              bid_deadline: proc.bid_deadline,
+              award_date: proc.award_date,
+              dias_decision: diasDecision,
+              max_dias: maxDias,
+            },
+            priority: "medium",
+            status: "new",
+            is_demo: upload.is_demo,
+            created_by: user_id,
+            alert_level: "process",
+            quality_note: "Cálculo aproximado: no se dispone de las fechas exactas de evaluación de ofertas.",
+          };
+          alertsToInsert.push(alert);
+          alertProcessLinks.push({ alert, processIds: [proc.id] });
+        }
+      }
+    }
+
+    // ============================================================
+    // R106 — El contrato tiene modificaciones (process level)
+    // ============================================================
+    const indR106 = indicators.find((i) => i.code === "R106");
+    if (indR106) {
+      const umbralPct = getParamNumber(indParams["R106"] || [], "umbral_modificacion_pct", 30);
+
+      for (const proc of procs) {
+        if (!proc.amendment_amount || proc.amendment_amount <= 0) continue;
+        if (!proc.awarded_amount || proc.awarded_amount <= 0) continue;
+
+        const pctModificacion = (proc.amendment_amount / proc.awarded_amount) * 100;
+        const superaUmbral = pctModificacion >= umbralPct;
+
+        const alert = {
+          alert_code: "",
+          indicator_id: indR106.id,
+          indicator_code: "R106",
+          upload_id,
+          title: `R106 — ${superaUmbral ? "Modificación significativa" : "Modificación contractual"} en proceso ${proc.process_id}`,
+          description: `El contrato del proceso ${proc.process_id} registra una modificación monetaria de ${proc.amendment_amount} (${pctModificacion.toFixed(1)}% del monto adjudicado). ${superaUmbral ? "Supera el umbral demostrativo del " + umbralPct + "%." : "No supera el umbral de revisión prioritaria."} Se requiere revisión técnica.`,
+          calculation_detail: `Monto adjudicado: ${proc.awarded_amount}, Monto modificación: ${proc.amendment_amount}, Porcentaje: ${pctModificacion.toFixed(1)}%, Umbral: ${umbralPct}%`,
+          threshold_applied: `amendment_amount > 0 AND (amendment_amount / awarded_amount) * 100 >= ${umbralPct}%`,
+          data_used: {
+            process_id: proc.process_id,
+            awarded_amount: proc.awarded_amount,
+            amendment_amount: proc.amendment_amount,
+            pct_modificacion: pctModificacion.toFixed(1),
+            umbral_pct: umbralPct,
+            supera_umbral: superaUmbral,
+          },
+          priority: superaUmbral ? "high" : "low",
+          status: "new",
+          is_demo: upload.is_demo,
+          created_by: user_id,
+          alert_level: "process",
+          quality_note: "Cálculo parcial: la plantilla actual no permite conocer modificaciones de plazo o alcance.",
+        };
+        alertsToInsert.push(alert);
+        alertProcessLinks.push({ alert, processIds: [proc.id] });
+      }
+    }
+
     await supabase.from("data_uploads").update({ processing_progress: 60 }).eq("id", upload_id);
 
     // ============================================================
@@ -584,7 +730,7 @@ Deno.serve(async (req: Request) => {
     // ============================================================
     // Compute flag counts and coverage
     // ============================================================
-    const flagCounts: Record<string, number> = { R018: 0, R003: 0, R063: 0, R013: 0, R040: 0 };
+    const flagCounts: Record<string, number> = { R018: 0, R003: 0, R063: 0, R013: 0, R040: 0, R101: 0, R104: 0, R106: 0 };
     for (const a of alertsToInsert) {
       if (flagCounts[a.indicator_code] !== undefined) flagCounts[a.indicator_code]++;
     }
@@ -628,7 +774,7 @@ Deno.serve(async (req: Request) => {
       action_type: "indicator_processing",
       module: "rules_engine",
       affected_record: upload_id,
-      description: `Procesamiento completado. ${savedAlerts} alertas: R018=${flagCounts.R018}, R003=${flagCounts.R003}, R063=${flagCounts.R063}, R013=${flagCounts.R013}, R040=${flagCounts.R040}`,
+      description: `Procesamiento completado. ${savedAlerts} alertas: R018=${flagCounts.R018}, R003=${flagCounts.R003}, R063=${flagCounts.R063}, R013=${flagCounts.R013}, R040=${flagCounts.R040}, R101=${flagCounts.R101 || 0}, R104=${flagCounts.R104 || 0}, R106=${flagCounts.R106 || 0}`,
       result: "success",
       metadata: { upload_id, flag_counts: flagCounts, coverage, total_processes: totalProcs },
     });

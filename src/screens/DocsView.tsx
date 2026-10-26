@@ -30,37 +30,97 @@ export function DocsView() {
         <section>
           <div className="flex items-center gap-2 mb-3">
             <AlertTriangle className="w-5 h-5 text-amber-600" />
-            <h2 className="text-base font-semibold text-slate-900">Cinco indicadores de riesgo</h2>
+            <h2 className="text-base font-semibold text-slate-900">Nueve banderas rojas priorizadas</h2>
           </div>
+          <p className="text-xs text-slate-500 mb-4">
+            BR-02 y BR-05 corresponden a indicadores ya existentes (R018 y R063). Las banderas marcadas como "pendiente de datos" están definidas pero requieren campos adicionales en la plantilla de carga para su cálculo automático.
+          </p>
           <div className="space-y-4">
             <div className="rounded-lg border border-slate-200 p-4">
-              <h3 className="text-sm font-semibold text-slate-800">1. Único oferente</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-slate-800">BR-01 · Manipulación de umbrales de contratación</h3>
+                <span className="badge bg-emerald-50 text-emerald-700 border-emerald-200 text-xs">Calculable</span>
+              </div>
               <p className="text-sm text-slate-600 mt-1">
-                Se activa cuando un procedimiento competitivo tiene un solo oferente válido. Se excluyen modalidades que no requieren competencia. El umbral por defecto es 1 oferente en modalidades competitivas (LP, LC, LI, EB).
+                Se activa cuando el monto adjudicado supera el umbral de referencia institucional (240 salarios mínimos mensuales) para la modalidad utilizada, especialmente en licitación pública y licitación corta. Indica que el proceso fue tramitado bajo una modalidad que no corresponde al monto real.
               </p>
             </div>
             <div className="rounded-lg border border-slate-200 p-4">
-              <h3 className="text-sm font-semibold text-slate-800">2. Concentración de adjudicaciones</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-slate-800">BR-02 · Único oferente</h3>
+                <span className="badge bg-emerald-50 text-emerald-700 border-emerald-200 text-xs">Calculable</span>
+              </div>
               <p className="text-sm text-slate-600 mt-1">
-                Calcula por institución, proveedor y periodo el porcentaje del número de contratos y del monto adjudicado. Se activa al superar los umbrales configurados (30% de contratos o 40% de monto, mínimo 3 contratos).
+                Se activa cuando un procedimiento competitivo tiene un solo oferente válido. Se excluyen modalidades que no requieren competencia. El umbral por defecto es 1 oferente en modalidades competitivas (LP, LC, LI, EB). Corresponde al indicador R018 ya existente.
               </p>
             </div>
             <div className="rounded-lg border border-slate-200 p-4">
-              <h3 className="text-sm font-semibold text-slate-800">3. Uso recurrente de modalidades no competitivas</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-slate-800">BR-03 · Similitudes comerciales entre oferentes</h3>
+                <span className="badge bg-amber-50 text-amber-700 border-amber-200 text-xs">Pendiente de datos</span>
+              </div>
               <p className="text-sm text-slate-600 mt-1">
-                Calcula la proporción de contrataciones y monto adjudicado mediante modalidades no competitivas o excepcionales. Se activa al superar los porcentajes configurados (20% por número o por monto).
+                Detecta oferentes que comparten teléfono, correo, dirección o representantes legales, lo que puede indicar acuerdos colusorios o empresas fachada. Requiere datos individuales de todos los oferentes participantes; la plantilla actual solo contiene datos del proveedor adjudicado.
               </p>
             </div>
             <div className="rounded-lg border border-slate-200 p-4">
-              <h3 className="text-sm font-semibold text-slate-800">4. Posible fraccionamiento o proximidad al umbral</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-slate-800">BR-04 · Período de decisión extremadamente corto</h3>
+                <span className="badge bg-emerald-50 text-emerald-700 border-emerald-200 text-xs">Calculable</span>
+              </div>
               <p className="text-sm text-slate-600 mt-1">
-                Identifica grupos de procesos con misma institución o unidad, fechas cercanas, objetos o categorías similares, mismo proveedor, montos próximos al umbral y suma acumulada superior al umbral. El resultado se presenta como "posible patrón que requiere revisión". Nunca afirma automáticamente que se produjo fraccionamiento.
+                Se activa cuando el intervalo entre la recepción de ofertas y la adjudicación es igual o inferior a 3 días en modalidades competitivas (LP, LC). Un período tan breve sugiere que la evaluación fue superficial o que la decisión estaba predeterminada.
               </p>
             </div>
             <div className="rounded-lg border border-slate-200 p-4">
-              <h3 className="text-sm font-semibold text-slate-800">5. Plazos atípicamente cortos</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-slate-800">BR-05 · Contrato o documento contractual no publicado</h3>
+                <span className="badge bg-emerald-50 text-emerald-700 border-emerald-200 text-xs">Calculable</span>
+              </div>
               <p className="text-sm text-slate-600 mt-1">
-                Calcula los días entre publicación y recepción de ofertas, entre recepción y adjudicación, y la duración total del proceso. Compara con los parámetros definidos para cada modalidad (7, 3 y 10 días por defecto).
+                Se activa cuando existe adjudicación pero el contrato o documento contractual no ha sido publicado, transcurrido el período de gracia configurado. La falta de publicación impide la transparencia y el control social. Corresponde al indicador R063 ya existente.
+              </p>
+            </div>
+            <div className="rounded-lg border border-slate-200 p-4">
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-slate-800">BR-06 · El contrato tiene modificaciones</h3>
+                <span className="badge bg-emerald-50 text-emerald-700 border-emerald-200 text-xs">Calculable</span>
+              </div>
+              <p className="text-sm text-slate-600 mt-1">
+                Se activa cuando un contrato tiene modificaciones monetarias, especialmente aquellas que superan el 30% del monto adjudicado, que se marcan como prioridad alta. Las modificaciones sustanciales pueden indicar subestimación inicial o cambios que alteran la naturaleza del contrato.
+              </p>
+            </div>
+            <div className="rounded-lg border border-slate-200 p-4">
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-slate-800">BR-07 · Modificaciones reiteradas de la convocatoria</h3>
+                <span className="badge bg-amber-50 text-amber-700 border-amber-200 text-xs">Pendiente de datos</span>
+              </div>
+              <p className="text-sm text-slate-600 mt-1">
+                Detecta convocatorias con múltiples enmiendas que modifican fechas, requisitos o especificaciones técnicas. Las modificaciones reiteradas pueden favorecer a un oferente específico o desalentar la competencia. Requiere datos de enmiendas no disponibles en la plantilla actual.
+              </p>
+            </div>
+            <div className="rounded-lg border border-slate-200 p-4">
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-slate-800">BR-08 · Cambios de último momento en las fechas</h3>
+                <span className="badge bg-amber-50 text-amber-700 border-amber-200 text-xs">Pendiente de datos</span>
+              </div>
+              <p className="text-sm text-slate-600 mt-1">
+                Se activa cuando las fechas clave (recepción de ofertas, apertura, adjudicación) se modifican con menos de 48 horas de antelación a su vencimiento original. Los cambios tardíos pueden impedir la participación de oferentes no favorecidos. Requiere historial de cambios de fechas.
+              </p>
+            </div>
+            <div className="rounded-lg border border-slate-200 p-4">
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-slate-800">BR-09 · Tiempo inusualmente corto entre apertura y firma</h3>
+                <span className="badge bg-amber-50 text-amber-700 border-amber-200 text-xs">Pendiente de datos</span>
+              </div>
+              <p className="text-sm text-slate-600 mt-1">
+                Se activa cuando el intervalo entre la apertura de ofertas y la firma del contrato es inferior a 5 días. Un período tan corto puede indicar que la decisión estaba tomada de antemano o que se omitieron controles previos a la firma. Requiere fecha de firma del contrato.
+              </p>
+            </div>
+            <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-4">
+              <h3 className="text-sm font-semibold text-slate-800">Indicadores institucionales complementarios</h3>
+              <p className="text-sm text-slate-600 mt-1">
+                Adicionalmente, el sistema mantiene dos indicadores de nivel institucional: <strong>concentración de adjudicaciones</strong> (R040) y <strong>uso recurrente de modalidades no competitivas</strong> (R013), que evalúan patrones agregados por institución y periodo.
               </p>
             </div>
           </div>
