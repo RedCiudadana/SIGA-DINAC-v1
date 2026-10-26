@@ -866,26 +866,14 @@ export function DashboardView({ onNavigate }: { onNavigate: (view: ViewKey, para
 }
 
 // ---- Institutional footer ----
-const FOOTER_LOGOS = [
-  { name: 'Unión Europea', url: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQjMp1mVg2XJPGG7eeNHDR-BW-QlIFxXuvO5BD9PrZKmQ&s' },
-  { name: 'Cooperación Alemana', url: 'https://datos.minfin.gob.gt/img/cintillo/01_COOPERACION%20ALEMANA.png' },
-  { name: 'GIZ', url: 'https://datos.minfin.gob.gt/img/cintillo/02_GIZ.png' },
-];
-
 function InstitutionalFooter() {
   return (
-    <div className="card px-6 py-5">
-      <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-5 sm:gap-x-14">
-        {FOOTER_LOGOS.map((org) => (
-          <img
-            key={org.name}
-            src={org.url}
-            alt={org.name}
-            className="h-14 w-auto max-w-[190px] object-contain"
-            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-          />
-        ))}
-      </div>
+    <div className="card overflow-hidden">
+      <img
+        src="/Captura_de_pantalla_2026-10-26_a_la(s)_12.48.25_p._m..png"
+        alt="Logos de la Unión Europea, cooperación alemana y GIZ"
+        className="block w-full h-auto object-contain"
+      />
     </div>
   );
 }
