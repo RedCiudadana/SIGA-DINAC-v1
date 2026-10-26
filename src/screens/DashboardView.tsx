@@ -866,52 +866,25 @@ export function DashboardView({ onNavigate }: { onNavigate: (view: ViewKey, para
 }
 
 // ---- Institutional footer ----
-const FOOTER_IMPLEMENTED_BY = [
-  { name: 'Global Gateway', url: 'https://media.springernature.com/m685/springer-static/image/art%3A10.1057%2Fs41254-026-00441-9/MediaObjects/41254_2026_441_Fig1_HTML.png' },
+const FOOTER_LOGOS = [
   { name: 'Unión Europea', url: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQjMp1mVg2XJPGG7eeNHDR-BW-QlIFxXuvO5BD9PrZKmQ&s' },
   { name: 'Cooperación Alemana', url: 'https://datos.minfin.gob.gt/img/cintillo/01_COOPERACION%20ALEMANA.png' },
   { name: 'GIZ', url: 'https://datos.minfin.gob.gt/img/cintillo/02_GIZ.png' },
 ];
 
-const FOOTER_COORDINATED_BY = [
-  { name: 'DINAC', url: 'https://dinac.gob.sv/wp-content/uploads/2026/01/LOGO-DINAC2.png' },
-];
-
 function InstitutionalFooter() {
   return (
-    <div className="card p-6">
-      <div className="space-y-5">
-        <div>
-          <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-3">Implementado por</p>
-          <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4">
-            {FOOTER_IMPLEMENTED_BY.map((org) => (
-              <img
-                key={org.name}
-                src={org.url}
-                alt={org.name}
-                className="h-10 w-auto object-contain"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-              />
-            ))}
-          </div>
-        </div>
-
-        <div className="h-px bg-slate-100" />
-
-        <div>
-          <p className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-3">En coordinación</p>
-          <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4">
-            {FOOTER_COORDINATED_BY.map((org) => (
-              <img
-                key={org.name}
-                src={org.url}
-                alt={org.name}
-                className="h-10 w-auto object-contain"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-              />
-            ))}
-          </div>
-        </div>
+    <div className="card px-6 py-5">
+      <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-5 sm:gap-x-14">
+        {FOOTER_LOGOS.map((org) => (
+          <img
+            key={org.name}
+            src={org.url}
+            alt={org.name}
+            className="h-14 w-auto max-w-[190px] object-contain"
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+          />
+        ))}
       </div>
     </div>
   );
