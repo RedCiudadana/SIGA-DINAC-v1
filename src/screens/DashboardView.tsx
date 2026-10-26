@@ -870,7 +870,7 @@ function InstitutionalFooter() {
   return (
     <div className="card overflow-hidden">
       <img
-        src="/Captura_de_pantalla_2026-10-26_a_la(s)_12.48.25_p._m..png"
+        src="/Captura_de_pantalla_2026-10-26_a_la(s)_12.55.07_p._m..png"
         alt="Logos de la Unión Europea, cooperación alemana y GIZ"
         className="block w-full h-auto object-contain"
       />
