@@ -71,9 +71,9 @@ export function AppShell({ currentView, onNavigate, children }: AppShellProps) {
             </button>
             <div className="flex items-center gap-2.5">
               <img
-                src="https://datos.minfin.gob.gt/img/cintillo/03_RC.png"
-                alt="SIGA-DINAC"
-                className="h-8 w-auto object-contain brightness-0 invert"
+                src="https://dinac.gob.sv/wp-content/uploads/2026/01/LOGO-DINAC2.png"
+                alt="DINAC"
+                className="h-8 w-auto object-contain"
                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
               />
               <div className="hidden sm:block">

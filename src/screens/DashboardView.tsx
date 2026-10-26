@@ -871,11 +871,10 @@ const FOOTER_IMPLEMENTED_BY = [
   { name: 'Unión Europea', url: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQjMp1mVg2XJPGG7eeNHDR-BW-QlIFxXuvO5BD9PrZKmQ&s' },
   { name: 'Cooperación Alemana', url: 'https://datos.minfin.gob.gt/img/cintillo/01_COOPERACION%20ALEMANA.png' },
   { name: 'GIZ', url: 'https://datos.minfin.gob.gt/img/cintillo/02_GIZ.png' },
-  { name: 'Red Ciudadana', url: 'https://datos.minfin.gob.gt/img/cintillo/03_RC.png' },
 ];
 
 const FOOTER_COORDINATED_BY = [
-  { name: 'DINAC', url: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQBKcMozZDWXdNTuCFLaHJCZWg4omy2j1ZEgvYb1gFK1B-jTEtx2CXKxVg&s=10' },
+  { name: 'DINAC', url: 'https://dinac.gob.sv/wp-content/uploads/2026/01/LOGO-DINAC2.png' },
 ];
 
 function InstitutionalFooter() {

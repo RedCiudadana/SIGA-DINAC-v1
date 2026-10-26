@@ -1,4 +1,4 @@
-const LOGO_URL = 'https://redciudadana.org/logo_red_ciudadana_alterno.png';
+const LOGO_URL = 'https://dinac.gob.sv/wp-content/uploads/2026/01/LOGO-DINAC2.png';
 
 export function LoadingScreen() {
   return (
@@ -10,12 +10,12 @@ export function LoadingScreen() {
           <div className="relative w-16 h-16 rounded-2xl bg-white shadow-lg border border-slate-200 flex items-center justify-center overflow-hidden">
             <img
               src={LOGO_URL}
-              alt="Red Ciudadana"
+              alt="DINAC"
               className="max-w-full max-h-full object-contain p-1.5"
               onError={(e) => {
                 const img = e.target as HTMLImageElement;
                 img.style.display = 'none';
-                img.parentElement!.innerHTML = '<span class="text-blue-900 font-bold text-lg">RC</span>';
+                img.parentElement!.innerHTML = '<span class="text-blue-900 font-bold text-sm">DINAC</span>';
               }}
             />
           </div>

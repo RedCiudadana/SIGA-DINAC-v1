@@ -16,7 +16,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 
-const LOGO_URL = 'https://redciudadana.org/logo_red_ciudadana_alterno.png';
+const LOGO_URL = 'https://dinac.gob.sv/wp-content/uploads/2026/01/LOGO-DINAC2.png';
 
 type ReportId = 'executive-summary' | 'alerts-by-indicator' | 'alerts-by-institution' | 'alerts-detail' | 'processes-summary';
 
@@ -307,7 +307,7 @@ export function ReportsView() {
         pdf.text('Dirección Nacional de Compras Públicas', margin + 22, 21);
 
       pdf.setFontSize(7);
-        pdf.text('Red Ciudadana', pageWidth - margin, 10, { align: 'right' });
+        pdf.text('DINAC', pageWidth - margin, 10, { align: 'right' });
         pdf.text('Reporte interno', pageWidth - margin, 14, { align: 'right' });
         pdf.text(`Clasificación: Uso interno`, pageWidth - margin, 18, { align: 'right' });
 
@@ -604,7 +604,7 @@ export function ReportsView() {
           margin, pageHeight - 12,
           { maxWidth: pageWidth - margin * 2 },
         );
-        pdf.text(`SIGA-DINAC · Red Ciudadana · Reporte ${reportId_short}`, margin, pageHeight - 8);
+        pdf.text(`SIGA-DINAC · DINAC · Reporte ${reportId_short}`, margin, pageHeight - 8);
         pdf.text(`Página ${i} de ${pageCount}`, pageWidth - margin, pageHeight - 8, { align: 'right' });
       }
 
@@ -635,7 +635,7 @@ export function ReportsView() {
       // Metadata sheet
       const metaRows = [
         ['SIGA-DINAC — Reporte interno'],
-        ['Red Ciudadana'],
+        ['DINAC'],
         ['Clasificación: Uso interno'],
         ["Reporte:", reportDef.title],
         ["ID:", reportIdShort],
@@ -1055,7 +1055,7 @@ export function ReportsView() {
 
       <InfoNote variant="info">
         Todos los reportes PDF y Excel incluyen: usuario que realizó la descarga, fecha y hora,
-        clasificación «Uso interno», identificador único y filtros aplicados. Los PDF además incluyen el logo de Red Ciudadana.
+        clasificación «Uso interno», identificador único y filtros aplicados. Los PDF además incluyen el logo de DINAC.
         Las banderas rojas son indicadores preventivos y no constituyen evidencia de irregularidad.
       </InfoNote>
     </div>

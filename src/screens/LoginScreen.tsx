@@ -7,7 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 
 const HERO_IMAGE = 'https://images.pexels.com/photos/20948982/pexels-photo-20948982.jpeg?auto=compress&cs=tinysrgb&w=1200';
-const LOGO_URL = 'https://redciudadana.org/logo_red_ciudadana_alterno.png';
+const LOGO_URL = 'https://dinac.gob.sv/wp-content/uploads/2026/01/LOGO-DINAC2.png';
 
 export function LoginScreen() {
   const { signIn, securitySettings } = useAuth();
@@ -166,8 +166,8 @@ export function LoginScreen() {
           <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-blue-900 mb-3 shadow-lg overflow-hidden p-2">
             <img
               src={LOGO_URL}
-              alt="Red Ciudadana"
-              className="max-w-full max-h-full object-contain brightness-0 invert"
+              alt="DINAC"
+              className="max-w-full max-h-full object-contain"
               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
             />
           </div>
