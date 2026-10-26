@@ -612,6 +612,14 @@ Todas las acciones que realiza en el sistema (inicio de sesión, cargas, cambios
 
 Sí. Vaya a **Mi perfil** (haga clic en su avatar en la esquina superior derecha y seleccione **Mi perfil**), vaya a la sección de seguridad de la cuenta y use el formulario de cambio de contraseña. Necesita su contraseña actual.
 
+### ¿Puedo cambiar mi propio rol o estado de cuenta?
+
+No. Por seguridad, el sistema bloquea cualquier intento de cambiar el propio rol, estado de cuenta, indicador de bloqueo, configuración de MFA o fecha de expiración de acceso. Estos cambios solo pueden ser realizados por un administrador desde el panel de configuración. Si cree que necesita un cambio de rol, solicítelo al administrador del sistema.
+
+### ¿Es seguro crear usuarios o resetear la base de datos desde el navegador?
+
+Sí. Estas operaciones se ejecutan en el servidor (Edge Functions de Supabase) con verificación de identidad. El sistema confirma automáticamente quién es usted a partir de su sesión activa y verifica que tenga los permisos necesarios antes de realizar la operación. No es posible eludir esta verificación desde el navegador.
+
 ---
 
 ## Sobre esta guía

@@ -58,9 +58,19 @@ Las banderas rojas son **indicadores preventivos**. Su activación no constituye
 ### Footer institucional
 - Se agregó un **footer institucional** con los logos de cooperación al final de todas las páginas internas del sistema.
 
+### Endurecimiento de seguridad
+- **Revocación de permisos del rol anónimo**: se eliminaron todos los permisos de `anon` sobre las tablas internas, conservando únicamente `SELECT` sobre `public_board_publications` (única tabla con acceso público legítimo vía RLS).
+- **Protección de columnas privilegiadas en `user_profiles`**: un trigger de base de datos bloquea server-side cualquier intento de cambiar `role_id`, `status`, `is_active`, `failed_attempts`, `locked_until`, `mfa_enabled`, `access_expires_at` o `force_password_change` por usuarios no administradores. Un usuario puede limpiar `force_password_change` tras cambiar su contraseña, pero no activarlo ni tocar las demás columnas.
+- **Políticas RLS reforzadas**: las políticas de escritura sobre `alerts`, `procurement_method_catalog` y `contract_status_catalog` ahora requieren el permiso específico (`manage_alerts`, `manage_catalogs`) o rol de administrador, en lugar de permitir escritura a cualquier usuario activo.
+- **Funciones SECURITY DEFINER protegidas**: se revocó `EXECUTE` de `PUBLIC` y `anon` sobre las funciones helper (`can_perform`, `is_admin`, `has_permission`, etc.), restringiendo su uso a usuarios autenticados.
+- **Edge Functions con verificación de JWT**: las tres funciones (`create-user`, `process-rules`, `reset-database`) ahora requieren un JWT válido (`verify_jwt = true`) y derivan la identidad del usuario desde el token verificado por el servidor, ignorando cualquier dato de identidad enviado en el cuerpo de la petición. La función `create-user` además verifica server-side que el solicitante tenga el permiso `manage_users`.
+
 ### Migraciones de base de datos
 - `20261026000000_public_boards.sql` — Tablas `public_boards`, `public_board_versions`, `public_board_publications` con RLS y funciones RPC de servidor.
 - `20261026000001_public_boards_create_rpc.sql` — Función `create_public_board` para creación autorizada de tableros.
+- `20261026000002_priority_red_flags_catalog.sql` — Catálogo de banderas rojas priorizadas.
+- `20261026210000_security_hardening_rls_and_grants.sql` — Revocación de permisos de `anon`, trigger de protección de columnas privilegiadas, políticas RLS reforzadas y restricción de funciones SECURITY DEFINER.
+- `20261026211000_refine_profile_guard_allow_password_flag_clear.sql` — Refinamiento del trigger para permitir limpiar `force_password_change` tras cambio de contraseña.
 
 ---
 
@@ -228,6 +238,9 @@ El sistema usa PostgreSQL (a través de Supabase) con **Row Level Security (RLS)
 | 08 | `08_super_admin_and_reset.sql` | Rol de Super Administrador y funcionalidad de reseteo de base de datos |
 | 09 | `20261026000000_public_boards.sql` | Tablas de tableros públicos, versiones, publicaciones, RLS y funciones RPC de servidor |
 | 10 | `20261026000001_public_boards_create_rpc.sql` | Función `create_public_board` para creación autorizada de tableros |
+| 11 | `20261026000002_priority_red_flags_catalog.sql` | Catálogo de banderas rojas priorizadas |
+| 12 | `20261026210000_security_hardening_rls_and_grants.sql` | Endurecimiento de seguridad: revocación de permisos de `anon`, trigger de columnas privilegiadas, políticas RLS reforzadas |
+| 13 | `20261026211000_refine_profile_guard_allow_password_flag_clear.sql` | Refinamiento del trigger de perfil para permitir limpiar `force_password_change` |
 
 ### Tablas principales
 
@@ -254,9 +267,11 @@ El sistema incluye 3 Edge Functions que se ejecutan en el servidor de Supabase (
 
 | Función | Qué hace |
 |---|---|
-| **create-user** | Crea un nuevo usuario en Supabase Auth y registra su perfil en la base de datos |
-| **process-rules** | Ejecuta las reglas de análisis sobre los procesos cargados y genera las alertas correspondientes |
-| **reset-database** | Elimina todos los procesos, alertas y cargas (conserva usuarios, roles, permisos y bitácora) |
+| **create-user** | Crea un nuevo usuario en Supabase Auth y registra su perfil. Requiere JWT válido; verifica server-side que el solicitante tenga el permiso `manage_users` |
+| **process-rules** | Ejecuta las reglas de análisis sobre los procesos cargados y genera las alertas. Requiere JWT válido; deriva la identidad del usuario desde el token |
+| **reset-database** | Elimina todos los procesos, alertas y cargas (conserva usuarios, roles, permisos y bitácora). Requiere JWT válido; verifica server-side el rol y permisos del solicitante |
+
+> Las tres funciones tienen `verify_jwt = true` y no aceptan datos de identidad del cuerpo de la petición. La identidad se obtiene siempre del JWT verificado por el servidor.
 
 ### Funciones RPC de base de datos (Tableros públicos)
 
@@ -465,7 +480,12 @@ Cada descarga de reporte queda registrada en la bitácora de auditoría con usua
 El sistema implementa múltiples capas de seguridad:
 
 - **Autenticación** — Inicio de sesión con correo y contraseña a través de Supabase Auth
-- **Row Level Security** — Todas las tablas tienen RLS habilitado; los usuarios solo acceden a los datos permitidos
+- **Row Level Security** — Todas las tablas tienen RLS habilitado; los usuarios solo acceden a los datos permitidos por su rol y permisos
+- **Permisos mínimos para rol anónimo** — El rol `anon` solo tiene acceso de lectura sobre `public_board_publications`; el resto de tablas internas no otorgan ningún permiso a usuarios no autenticados
+- **Protección de columnas privilegiadas** — Un trigger de base de datos bloquea cambios no autorizados a `role_id`, `status`, `is_active`, `failed_attempts`, `locked_until`, `mfa_enabled`, `access_expires_at` y `force_password_change` en `user_profiles`, evitando auto-escalación de privilegios
+- **Políticas RLS por permiso** — La escritura sobre `alerts` y catálogos requiere el permiso específico (`manage_alerts`, `manage_catalogs`) o rol de administrador
+- **Funciones SECURITY DEFINER restringidas** — Las funciones helper solo son ejecutables por usuarios autenticados, no por el rol anónimo
+- **Edge Functions con verificación de JWT** — Las tres funciones de servidor requieren un JWT válido y derivan la identidad del usuario desde el token, no desde datos del cliente
 - **Cierre por inactividad** — Sesión se cierra automáticamente tras un periodo configurable
 - **Bloqueo por intentos fallidos** — Cuenta bloqueada temporalmente tras múltiples intentos fallidos
 - **Políticas de contraseña** — Longitud mínima, mayúsculas, minúsculas, números y caracteres especiales configurables
