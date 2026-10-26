@@ -12,7 +12,7 @@ export type ViewKey =
   | 'dashboard'
   | 'upload' | 'uploads' | 'validation'
   | 'alerts' | 'alert-detail' | 'process-detail'
-  | 'reports' | 'config'
+  | 'reports' | 'config' | 'public-boards'
   | 'docs' | 'tutorials' | 'profile';
 
 interface AppShellProps {

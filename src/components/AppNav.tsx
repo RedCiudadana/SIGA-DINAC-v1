@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Upload, History,
-  AlertTriangle, FileText, Settings, BookOpen, GraduationCap, X,
+  AlertTriangle, FileText, Settings, BookOpen, GraduationCap, PanelsTopLeft, X,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import type { ViewKey } from '@/components/AppShell';
@@ -36,6 +36,12 @@ const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
     ],
   },
   {
+    title: 'Publicación',
+    items: [
+      { key: 'public-boards', label: 'Tableros públicos', icon: PanelsTopLeft, permission: 'manage_public_boards' },
+    ],
+  },
+  {
     title: 'Ayuda',
     items: [
       { key: 'docs', label: 'Documentación', icon: BookOpen, permission: 'view_documentation' },
@@ -46,6 +52,12 @@ const NAV_SECTIONS: { title: string; items: NavItem[] }[] = [
 
 // Menú simplificado para Fiscalización: solo lo que necesita
 const NAV_FISCALIZATION: { title: string; items: NavItem[] }[] = [
+  {
+    title: 'Publicación',
+    items: [
+      { key: 'public-boards', label: 'Tableros públicos', icon: PanelsTopLeft, permission: 'manage_public_boards' },
+    ],
+  },
   {
     title: 'General',
     items: [

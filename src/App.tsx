@@ -14,6 +14,7 @@ import { TutorialsView } from '@/screens/TutorialsView';
 import { ProfileView } from '@/screens/ProfileView';
 import { ConfigPanel, type ConfigTab } from '@/screens/ConfigPanel';
 import { LoadingScreen } from '@/components/LoadingScreen';
+import { PublicBoardsView, PublicBoardView } from '@/screens/PublicBoardsView';
 
 function AppContent() {
   const { session, profile, loading, hasPermission } = useAuth();
@@ -58,6 +59,8 @@ function AppContent() {
         return <ConfigPanel initialTab={params.tab as ConfigTab | undefined} onNavigate={handleNavigate} />;
       case 'reports':
         return <ReportsView />;
+      case 'public-boards':
+        return <PublicBoardsView onNavigate={handleNavigate} />;
       case 'docs':
         return <DocsView />;
       case 'tutorials':
@@ -77,6 +80,14 @@ function AppContent() {
 }
 
 export default function App() {
+  const path = window.location.pathname.replace(/\/+$/, '');
+  if (path.startsWith('/publico/tableros/')) {
+    const parts = path.split('/').filter(Boolean);
+    const publicId = decodeURIComponent(parts[2] || '');
+    const embed = parts[3] === 'embed';
+    return <PublicBoardView publicId={publicId} embed={embed} />;
+  }
+
   return (
     <AuthProvider>
       <AppContent />
