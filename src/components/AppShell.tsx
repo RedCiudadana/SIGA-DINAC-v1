@@ -7,6 +7,7 @@ import { ROLE_LABELS } from '@/types';
 import { AppNav } from '@/components/AppNav';
 import { SessionTimeout } from '@/components/SessionTimeout';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { InstitutionalFooter } from '@/components/InstitutionalFooter';
 
 export type ViewKey =
   | 'dashboard'
@@ -173,6 +174,7 @@ export function AppShell({ currentView, onNavigate, children }: AppShellProps) {
             </div>
           )}
           {children}
+          <InstitutionalFooter />
         </main>
       </div>
 
