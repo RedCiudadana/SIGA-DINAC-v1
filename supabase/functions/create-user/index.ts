@@ -6,12 +6,40 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
+async function getUserFromJwt(req: Request): Promise<{ id: string; email: string | null } | null> {
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader) return null;
+  const token = authHeader.replace("Bearer ", "");
+  if (!token) return null;
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const url = `${supabaseUrl}/auth/v1/user`;
+  const resp = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      apikey: Deno.env.get("SUPABASE_ANON_KEY")!,
+    },
+  });
+  if (!resp.ok) return null;
+  const user = await resp.json();
+  if (!user?.id) return null;
+  return { id: user.id as string, email: user.email ?? null };
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
   }
 
   try {
+    const authUser = await getUserFromJwt(req);
+    if (!authUser) {
+      return new Response(
+        JSON.stringify({ error: "No autenticado" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const {
       email,
       password,
@@ -19,9 +47,10 @@ Deno.serve(async (req: Request) => {
       position,
       organizational_unit,
       role_id,
-      requester_id,
-      requester_email,
     } = await req.json();
+
+    const requester_id = authUser.id;
+    const requester_email = authUser.email;
 
     if (!email || !password || !full_name || !role_id) {
       return new Response(
@@ -41,6 +70,39 @@ Deno.serve(async (req: Request) => {
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
+
+    // 0. Verify requester has permission to manage users
+    const { data: requesterProfile } = await supabase
+      .from("user_profiles")
+      .select("role_id")
+      .eq("user_id", requester_id)
+      .maybeSingle();
+
+    if (!requesterProfile?.role_id) {
+      return new Response(
+        JSON.stringify({ error: "Usuario no encontrado o sin rol asignado" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const { data: reqPerms } = await supabase
+      .from("role_permissions")
+      .select("permission:permissions(code)")
+      .eq("role_id", requesterProfile.role_id);
+
+    const canManageUsers = (reqPerms || []).some((rp) => {
+      const p = rp.permission as unknown;
+      if (Array.isArray(p) && p.length > 0) return p[0]?.code === "manage_users";
+      if (p && typeof p === "object" && "code" in p) return (p as { code: string }).code === "manage_users";
+      return false;
+    });
+
+    if (!canManageUsers) {
+      return new Response(
+        JSON.stringify({ error: "No tiene permisos para gestionar usuarios" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // 1. Create auth user
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({

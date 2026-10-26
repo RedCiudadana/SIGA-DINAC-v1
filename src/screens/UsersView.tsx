@@ -67,28 +67,25 @@ export function UsersView() {
     }
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-        },
-        body: JSON.stringify({
+      const { data: result, error: invokeError } = await supabase.functions.invoke('create-user', {
+        body: {
           email: inviteForm.email,
           password: invitePassword,
           full_name: inviteForm.full_name,
           position: inviteForm.position,
           organizational_unit: inviteForm.unit,
           role_id: inviteForm.role_id,
-          requester_id: profile?.user_id,
-          requester_email: profile?.email,
-        }),
+        },
       });
 
-      const result = await response.json();
+      if (invokeError) {
+        setInviteError('Error al conectar con el servidor: ' + invokeError.message);
+        setInviteLoading(false);
+        return;
+      }
 
-      if (!response.ok) {
-        setInviteError(result.error || 'No se pudo crear el usuario.');
+      if (result?.error) {
+        setInviteError(result.error);
         setInviteLoading(false);
         return;
       }

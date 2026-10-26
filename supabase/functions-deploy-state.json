@@ -3,15 +3,15 @@
   "functions": {
     "create-user": {
       "hasChanged": false,
-      "hash": "931c163959ca9be7ac9b40fb748d9d05737b5fbe86306e4ae1c44dc596d93380"
+      "hash": "e1aea4e2e7dedca6234e667a665fa5b0caa7b3413aa1ccd0c2ff069f187c2eb5"
     },
     "process-rules": {
       "hasChanged": false,
-      "hash": "7db8fa826e28f683d3f786893e4013408c02335f7706c17cf1629d16e9de0e25"
+      "hash": "541e9fa569eef27e9b1173a418510e7d9160703cbeeca735834fd80bb66aba27"
     },
     "reset-database": {
       "hasChanged": false,
-      "hash": "f2bbc5d0b58c9af57d5f5e8292032229100045fa4a91cf748c62ea7fd57ffb7d"
+      "hash": "cb1d6caaad70ac3c8eff4cabf62927e8bc13c771501a4ea7d0cfd8f87e6d72b0"
     }
   }
 }

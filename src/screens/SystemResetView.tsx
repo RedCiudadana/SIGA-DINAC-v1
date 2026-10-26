@@ -93,9 +93,6 @@ export function SystemResetView() {
         body: {
           confirmation: 'RESET_CONFIRMED',
           scope,
-          user_id: profile?.user_id,
-          user_email: profile?.email,
-          user_role: profile?.role?.code,
         },
       });
 

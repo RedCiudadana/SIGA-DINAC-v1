@@ -1,8 +1,8 @@
 [functions.process-rules]
-verify_jwt = false
+verify_jwt = true
 
 [functions.create-user]
-verify_jwt = false
+verify_jwt = true
 
 [functions.reset-database]
-verify_jwt = false
+verify_jwt = true

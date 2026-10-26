@@ -76,17 +76,46 @@ function getParamBool(params: { param_key: string; param_value: string }[], key:
   return v === 'true' || v === '1' || v === 'yes' || v === 'sí' || v === 'si';
 }
 
+async function getUserFromJwt(req: Request): Promise<{ id: string; email: string | null } | null> {
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader) return null;
+  const token = authHeader.replace("Bearer ", "");
+  if (!token) return null;
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const url = `${supabaseUrl}/auth/v1/user`;
+  const resp = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      apikey: Deno.env.get("SUPABASE_ANON_KEY")!,
+    },
+  });
+  if (!resp.ok) return null;
+  const user = await resp.json();
+  if (!user?.id) return null;
+  return { id: user.id as string, email: user.email ?? null };
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
   }
 
   try {
-    const { upload_id, user_id } = await req.json();
-
-    if (!upload_id || !user_id) {
+    const authUser = await getUserFromJwt(req);
+    if (!authUser) {
       return new Response(
-        JSON.stringify({ error: "upload_id y user_id son requeridos" }),
+        JSON.stringify({ error: "No autenticado" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const { upload_id } = await req.json();
+    const user_id = authUser.id;
+
+    if (!upload_id) {
+      return new Response(
+        JSON.stringify({ error: "upload_id es requerido" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

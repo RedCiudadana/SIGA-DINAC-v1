@@ -636,7 +636,7 @@ export function UploadView({ onNavigate }: { onNavigate: (view: ViewKey) => void
       }
 
       const { data: ruleResult, error: ruleError } = await supabase.functions.invoke('process-rules', {
-        body: { upload_id: uploadData.id, user_id: profile?.user_id },
+        body: { upload_id: uploadData.id },
       });
 
       const processingTime = Date.now() - processingStartRef.current;

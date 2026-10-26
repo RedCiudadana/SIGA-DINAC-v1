@@ -6,24 +6,47 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
+async function getUserFromJwt(req: Request): Promise<{ id: string; email: string | null } | null> {
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader) return null;
+  const token = authHeader.replace("Bearer ", "");
+  if (!token) return null;
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const url = `${supabaseUrl}/auth/v1/user`;
+  const resp = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      apikey: Deno.env.get("SUPABASE_ANON_KEY")!,
+    },
+  });
+  if (!resp.ok) return null;
+  const user = await resp.json();
+  if (!user?.id) return null;
+  return { id: user.id as string, email: user.email ?? null };
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200, headers: corsHeaders });
   }
 
   try {
-    const { confirmation, scope, user_id, user_email, user_role } = await req.json();
+    const authUser = await getUserFromJwt(req);
+    if (!authUser) {
+      return new Response(
+        JSON.stringify({ error: "No autenticado" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const { confirmation, scope } = await req.json();
+    const user_id = authUser.id;
+    const user_email = authUser.email;
 
     if (confirmation !== "RESET_CONFIRMED") {
       return new Response(
         JSON.stringify({ error: "Confirmación requerida. Envíe confirmation: 'RESET_CONFIRMED'" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    if (!user_id) {
-      return new Response(
-        JSON.stringify({ error: "user_id es requerido" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -33,7 +56,7 @@ Deno.serve(async (req: Request) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Verify user has reset_database permission
+    // Verify user has reset_database permission (looked up from verified JWT user_id)
     const { data: profile } = await supabase
       .from("user_profiles")
       .select("role_id")
