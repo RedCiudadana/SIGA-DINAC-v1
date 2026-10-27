@@ -574,7 +574,7 @@ export function UploadView({ onNavigate }: { onNavigate: (view: ViewKey) => void
       const supMap = new Map<string, string>();
       suppliers.forEach((s) => supMap.set(s.code.toLowerCase().trim(), s.id));
 
-      const processInserts = parsedRows.map((row) => {
+      const processInserts = parsedRows.map((row, rowIndex) => {
         const instCode = row.institution_id?.trim() || null;
         const instId = instCode ? instMap.get(instCode.toLowerCase()) || null : null;
         const supCode = row.supplier_id?.trim() || null;
@@ -583,7 +583,7 @@ export function UploadView({ onNavigate }: { onNavigate: (view: ViewKey) => void
         const normDate = (col: string) => row[col] ? normalizeDate(row[col]) : null;
 
         return {
-          process_id: row.process_id || `PRC-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          process_id: row.process_id || `PRC-${uploadData.id.slice(0, 8)}-${rowIndex + 1}`,
           upload_id: uploadData.id,
           institution_id: instId,
           institution_code: instCode,

@@ -645,7 +645,9 @@ Deno.serve(async (req: Request) => {
         if (!proc.awarded_amount || proc.awarded_amount <= 0) continue;
 
         const pctModificacion = (proc.amendment_amount / proc.awarded_amount) * 100;
-        const superaUmbral = pctModificacion >= umbralPct;
+        if (pctModificacion < umbralPct) continue;
+
+        const superaUmbral = true;
 
         const alert = {
           alert_code: "",
@@ -779,11 +781,11 @@ Deno.serve(async (req: Request) => {
       with_valid_bids: withValidBids,
       with_doc_published_info: withDocPublished,
       with_pub_and_bid_dates: withPubAndBid,
-      r018_coverage: totalProcs > 0 ? ((withValidBids + procs.filter((p) => p.number_of_bidders !== null).length) / totalProcs * 100) : 0,
+      r018_coverage: totalProcs > 0 ? (procs.filter((p) => p.number_of_valid_bids !== null || p.number_of_bidders !== null).length / totalProcs * 100) : 0,
       r003_coverage: totalProcs > 0 ? (withPubAndBid / totalProcs * 100) : 0,
       r063_coverage: totalProcs > 0 ? (withDocPublished / totalProcs * 100) : 0,
       r013_coverage: totalProcs > 0 ? (withInstCode / totalProcs * 100) : 0,
-      r040_coverage: totalProcs > 0 ? (withInstCode / totalProcs * 100) : 0,
+      r040_coverage: totalProcs > 0 ? (withSupplierId / totalProcs * 100) : 0,
     };
 
     // ============================================================
