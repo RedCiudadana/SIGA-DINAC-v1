@@ -373,6 +373,14 @@ export function LoginScreen() {
               Entorno de demostración — datos ficticios
             </p>
           </div>
+
+          <div className="mt-6 flex justify-center">
+            <img
+              src="/Logo_Global_Gateway_cofinanciado_por_Union_Europea_y_GIZ.jpg"
+              alt="Global Gateway, cofinanciado por la Unión Europea e implementado por GIZ"
+              className="block w-full max-w-md h-auto max-h-24 object-contain"
+            />
+          </div>
         </div>
       </div>
     </div>
