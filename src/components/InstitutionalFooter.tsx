@@ -5,7 +5,7 @@ export function InstitutionalFooter() {
         <img
           src="/Global_Gateway.png"
           alt="Global Gateway"
-          className="block h-24 w-auto object-contain sm:h-28"
+          className="block h-12 w-auto object-contain sm:h-16"
         />
         <img
           src="/Captura_de_pantalla_2026-10-26_a_la(s)_12.55.07_p._m..png"
